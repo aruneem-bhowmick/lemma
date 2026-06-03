@@ -125,15 +125,23 @@ problematic in production.
 
 ---
 
-## Gate Conditions Met
+## Gate Conditions
 
-| Condition | Status |
-|-----------|--------|
-| `sample-page.png` exists and is non-empty | ✅ |
-| `expected-output.md` has all four required callout types | ✅ |
-| Winning model output exists with LaTeX and adjacency JSON | ✅ |
-| `compare-output.ts` runs without error | ✅ |
-| `README-spike.md` declares `chosen: claude-sonnet-4-6` | ✅ |
-| `npm test` passes (all spike unit tests green) | ✅ |
+| Condition | Status | Notes |
+|-----------|--------|-------|
+| `sample-page.png` exists and is non-empty | ⚠️ Pending | Committed file is a **placeholder** (synthetic 8×8 PNG). Must be replaced with a real OneNote export before this gate is truly green. |
+| `expected-output.md` has all four required callout types | ✅ | |
+| Winning model output exists with LaTeX and complete adjacency JSON | ✅ | Both `"vertices"` and `"edges"` keys confirmed present. |
+| `compare-output.ts` runs without error | ✅ | |
+| `README-spike.md` declares `chosen: claude-sonnet-4-6` | ✅ | |
+| `npm test` passes (all spike unit tests green) | ✅ | 71 tests pass. |
 
-**Phase 1 pipeline construction may proceed.**
+> **Outstanding step:** Replace `scripts/spike/fixtures/sample-page.png` with a real
+> PNG export from OneNote, then re-run `vision-test.ts` and `compare-output.ts` to
+> confirm the winning model still holds on real input.  See the
+> [Replacing sample-page.png](../scripts/README-spike.md) section in
+> `scripts/README-spike.md` for the exact commands.
+>
+> All other gate conditions are met.  Pipeline construction may begin in parallel
+> while the real export is obtained, but the spike should be considered
+> **provisionally validated** until this step is complete.
