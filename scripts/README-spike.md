@@ -159,12 +159,33 @@ re-evaluation if model versions change.
 
 ## Next Steps
 
-All three spike gate conditions are met:
+Spike gate conditions status:
 
-- ✅ `sample-page.png` is non-empty and represents a real handwritten page.
+- ⚠️ `sample-page.png` is a **placeholder** (a synthetic 8×8 PNG).  Replace it with
+  a real PNG export from OneNote before treating the spike as fully validated.
+  See [How to re-run the bake-off](#replacing-sample-pagepng) below.
 - ✅ `expected-output.md` contains all required callout types, LaTeX, and adjacency JSON.
 - ✅ `claude-sonnet-4-6-output.md` exists with LaTeX and adjacency JSON confirmed.
 - ✅ `compare-output.ts` runs without error and produces a ranked summary table.
 - ✅ This document declares `chosen: claude-sonnet-4-6`.
 
-**Proceed to Prompt 1 (Repository Scaffolding).**
+**Proceed to repository scaffolding only after replacing `sample-page.png` with a real
+OneNote export and re-running `vision-test.ts` + `compare-output.ts` to confirm the
+winner still holds on real input.**
+
+### Replacing sample-page.png
+
+1. Export a representative OneNote page that contains a proof, inline LaTeX, and a
+   hand-drawn graph as PNG (iPad share sheet → Save to Files).
+2. Overwrite the placeholder:
+   ```bash
+   cp /path/to/your-real-page.png scripts/spike/fixtures/sample-page.png
+   ```
+3. Re-run the spike:
+   ```bash
+   npx ts-node scripts/spike/render-test.ts scripts/spike/fixtures/sample-page.png
+   ANTHROPIC_API_KEY=... OPENAI_API_KEY=... GOOGLE_API_KEY=... \
+     npx ts-node scripts/spike/vision-test.ts
+   npx ts-node scripts/spike/compare-output.ts
+   ```
+4. Confirm the winner still holds and update this document if the results change.
