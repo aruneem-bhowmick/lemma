@@ -1,0 +1,3 @@
+-- Migration 001: pages table
+-- Populated in full by Prompt 2.
+-- Run via: npm run db:migrate

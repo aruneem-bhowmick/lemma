@@ -1,0 +1,40 @@
+/**
+ * Pipeline orchestrator — entry point for the Lemma Phase 1 ingestion run.
+ *
+ * Coordinates all five pipeline stages (discover → detect → render →
+ * convert → write) with configurable concurrency, per-page failure
+ * isolation, and a final summary report.
+ *
+ * Implemented in full by Prompt 11.
+ */
+
+import type { PipelineResult } from '../types.js';
+
+/** Options for a pipeline run; all fields fall back to environment variables. */
+export interface RunPipelineOptions {
+  /** OneNote notebook identifier. Defaults to process.env.ONENOTE_NOTEBOOK_ID. */
+  notebookId?: string;
+  /** When true, skip file writes and DB updates. Defaults to process.env.DRY_RUN === 'true'. */
+  dryRun?: boolean;
+  /** Maximum concurrent page processing tasks. Defaults to process.env.MAX_CONCURRENT_PAGES ?? 3. */
+  maxConcurrent?: number;
+}
+
+/**
+ * Executes the full Phase 1 ingestion pipeline for one run.
+ *
+ * Stages:
+ *  1. Discover — list all pages from Graph API and seed the manifest.
+ *  2. Detect   — filter to only pages needing processing.
+ *  3. Render   — fetch and rasterize each page image (concurrent, capped).
+ *  4. Convert  — call the vision LLM to produce structured Markdown.
+ *  5. Write    — persist Markdown to corpus and update the manifest.
+ *
+ * @param options - Optional overrides for notebook ID, dry-run mode, and concurrency.
+ * @returns PipelineResult summary with counts and per-failure details.
+ * @throws Error if the discovery stage fails (cannot continue without the page list).
+ */
+export async function runPipeline(options?: RunPipelineOptions): Promise<PipelineResult> {
+  void options;
+  return { processed: 0, skipped: 0, failed: 0, errors: [] };
+}
