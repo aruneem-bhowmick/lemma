@@ -43,14 +43,16 @@ export function isPdf(buf: Buffer): boolean {
 /**
  * Rasterises the first page of a PDF file to a PNG buffer at {@link TARGET_DPI} DPI.
  *
+ * Accepts the PDF as a pre-read `Buffer` so the caller reads the file exactly
+ * once and can reuse the same buffer for both magic-byte detection and rendering.
  * Requires the optional `canvas` npm package for Node.js rendering.  Throws a
  * descriptive error if `canvas` is absent so the caller can fall back gracefully.
  *
- * @param pdfPath - Absolute path to the PDF file.
+ * @param pdfData - Raw bytes of the PDF file.
  * @returns PNG-encoded buffer of the first page.
  * @throws Error if the `canvas` package is not installed or rendering fails.
  */
-export async function rasterizePdf(pdfPath: string): Promise<Buffer> {
+export async function rasterizePdf(pdfData: Buffer): Promise<Buffer> {
   let createCanvas: (width: number, height: number) => {
     getContext(type: '2d'): CanvasRenderingContext2D;
     toBuffer(mime: string): Buffer;
@@ -72,7 +74,7 @@ export async function rasterizePdf(pdfPath: string): Promise<Buffer> {
   const pdfjsLib = await import('pdfjs-dist');
   (pdfjsLib.GlobalWorkerOptions as { workerSrc: string }).workerSrc = '';
 
-  const data = new Uint8Array(readFileSync(pdfPath));
+  const data = new Uint8Array(pdfData);
   const pdfDoc = await pdfjsLib.getDocument({
     data,
     disableAutoFetch: true,
@@ -121,8 +123,9 @@ export async function normaliseToPng(imageBuffer: Buffer): Promise<Buffer> {
 }
 
 /**
- * Main entry point.  Reads the input file, normalises it to PNG, writes the
- * output to the fixtures directory, and logs the resulting dimensions.
+ * Main entry point.  Reads the input file once, uses {@link isPdf} on the
+ * buffer for content-based format detection, normalises to PNG, and writes the
+ * result to the fixtures directory.
  */
 async function main(): Promise<void> {
   const inputArg = process.argv[2];
@@ -133,25 +136,30 @@ async function main(): Promise<void> {
   }
 
   const absolutePath = resolve(inputArg);
-  const ext = extname(absolutePath).toLowerCase();
 
-  let rawBuffer: Buffer;
+  // Read the file once; the same buffer is used for detection and processing.
+  const rawBuffer = readFileSync(absolutePath);
 
-  if (ext === '.pdf') {
-    console.log('[render-test] PDF detected — rasterising page 1 at 150 DPI…');
-    rawBuffer = await rasterizePdf(absolutePath);
-  } else if (['.png', '.jpg', '.jpeg'].includes(ext)) {
-    console.log(`[render-test] Image detected (${ext}) — reading…`);
-    rawBuffer = readFileSync(absolutePath);
+  let inputBuffer: Buffer;
+
+  if (isPdf(rawBuffer)) {
+    // Content-based detection takes priority over file extension.
+    console.log('[render-test] PDF detected by magic bytes — rasterising page 1 at 150 DPI…');
+    inputBuffer = await rasterizePdf(rawBuffer);
   } else {
-    console.error(
-      `[render-test] Unsupported file type: ${ext}. ` +
-      'Provide a .png, .jpg, .jpeg, or .pdf file.',
-    );
-    process.exit(1);
+    const ext = extname(absolutePath).toLowerCase();
+    if (!['.png', '.jpg', '.jpeg'].includes(ext)) {
+      console.warn(
+        `[render-test] Unrecognised extension '${ext}' — ` +
+        'will attempt to process as image via sharp.',
+      );
+    } else {
+      console.log(`[render-test] Image file (${ext}) — reading…`);
+    }
+    inputBuffer = rawBuffer;
   }
 
-  const pngBuffer = await normaliseToPng(rawBuffer);
+  const pngBuffer = await normaliseToPng(inputBuffer);
   writeFileSync(OUTPUT_PATH, pngBuffer);
 
   const outMeta = await sharp(pngBuffer).metadata();
