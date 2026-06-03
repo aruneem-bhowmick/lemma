@@ -87,8 +87,9 @@ After rasterisation, the pipeline enforces a minimum quality check:
   blank or corrupt and will degrade vision accuracy significantly.
   A `WARNING: rendered image is suspiciously small` log entry is emitted.
 
-Both thresholds are defined in `src/pipeline/render.ts` and can be adjusted
-via environment variables in future iterations if needed.
+Both thresholds are defined in `src/pipeline/render.ts` (stub at this stage;
+implemented in full by Prompt 6) and can be adjusted via environment variables
+in future iterations if needed.
 
 ---
 
@@ -121,3 +122,10 @@ to `rasterizePdf()` or directly to `normaliseToPng()`.
 3. Add the strategy to the fallback chain in `renderPage()`.
 4. Add the strategy name as a valid value for `RENDER_STRATEGY` in
    `.env.example` and `docs/rendering-strategy.md`.
+
+---
+
+## Related Documents
+
+- [Project Structure](project-structure.md) — full source directory layout and module roles.
+- [Development Setup](development.md) — environment setup and how to run the pipeline locally.

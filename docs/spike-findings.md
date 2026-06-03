@@ -134,7 +134,7 @@ problematic in production.
 | Winning model output exists with LaTeX and complete adjacency JSON | ✅ | Both `"vertices"` and `"edges"` keys confirmed present. |
 | `compare-output.ts` runs without error | ✅ | |
 | `README-spike.md` declares `chosen: claude-sonnet-4-6` | ✅ | |
-| `npm test` passes (all spike unit tests green) | ✅ | 71 tests pass. |
+| `npm test` passes (all spike unit tests green) | ✅ | 71 spike tests + 10 scaffold tests = 81 total. |
 
 > **Outstanding step:** Replace `scripts/spike/fixtures/sample-page.png` with a real
 > PNG export from OneNote, then re-run `vision-test.ts` and `compare-output.ts` to
@@ -145,3 +145,12 @@ problematic in production.
 > All other gate conditions are met.  Pipeline construction may begin in parallel
 > while the real export is obtained, but the spike should be considered
 > **provisionally validated** until this step is complete.
+
+---
+
+## Related Documents
+
+- [Project Structure](project-structure.md) — full source layout established by the Phase 1 scaffold.
+- [Development Setup](development.md) — how to run tests and the pipeline locally.
+- [Model Selection](model-selection.md) — detailed rationale for the `claude-sonnet-4-6` choice.
+- [Rendering Strategy](rendering-strategy.md) — strategy hierarchy and quality gates.
