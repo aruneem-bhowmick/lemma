@@ -20,7 +20,11 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 
@@ -347,7 +351,7 @@ async function main(): Promise<void> {
 }
 
 // Only run main() when executed directly (not when imported by tests)
-if (require.main === module) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main().catch((err: unknown) => {
     console.error('[vision-test] Fatal error:', err instanceof Error ? err.message : err);
     process.exit(1);

@@ -18,8 +18,12 @@
  */
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { distance } from 'fastest-levenshtein';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -242,6 +246,6 @@ function main(): void {
 }
 
 // Only run main() when executed directly (not when imported by tests)
-if (require.main === module) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main();
 }

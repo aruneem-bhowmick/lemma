@@ -24,3 +24,7 @@ scripts/spike/fixtures/rendered.png
 
 # Spike model outputs (generated at runtime — committed manually after bake-off)
 # scripts/spike/fixtures/*-output.md is intentionally tracked
+
+# Spike PNG fixtures — only sample-page.png is source-controlled
+scripts/spike/fixtures/*.png
+!scripts/spike/fixtures/sample-page.png

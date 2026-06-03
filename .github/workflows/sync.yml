@@ -1,0 +1,25 @@
+# Stub — completed in Prompt 13.
+# This workflow will run the Phase 1 sync pipeline on a nightly schedule.
+name: Lemma Sync — Phase 1
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no writes)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: lemma-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Stub — pipeline not yet implemented
+        run: echo "Sync pipeline stub — implement in Prompt 13"

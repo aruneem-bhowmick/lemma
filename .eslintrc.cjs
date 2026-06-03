@@ -5,8 +5,8 @@
  * extends the @typescript-eslint/recommended rule set for type-aware linting.
  *
  * Notable rule overrides:
- *   no-console           — off: spike scripts use console for progress reporting.
- *   no-require-imports   — off: CommonJS require.main === module guard is intentional.
+ *   no-console           — off: pipeline stages and spike scripts use console for progress reporting.
+ *   no-require-imports   — off: CommonJS require.main === module guard is intentional in spike scripts.
  */
 module.exports = {
   root: true,
@@ -31,9 +31,9 @@ module.exports = {
     '**/*.d.ts',
   ],
   rules: {
-    // Spike scripts emit structured progress lines to stdout/stderr by design
+    // Pipeline stages and spike scripts emit structured progress lines to stdout/stderr by design
     'no-console': 'off',
-    // CommonJS interop: require.main === module guards and dynamic require() calls
+    // CommonJS interop: require.main === module guards in spike scripts
     '@typescript-eslint/no-require-imports': 'off',
   },
 };
