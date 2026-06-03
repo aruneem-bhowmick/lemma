@@ -235,4 +235,7 @@ function main(): void {
   }
 }
 
-main();
+// Only run main() when executed directly (not when imported by tests)
+if (require.main === module) {
+  main();
+}

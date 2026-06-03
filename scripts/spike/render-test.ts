@@ -162,7 +162,10 @@ async function main(): Promise<void> {
   console.log(`[render-test] File size: ${pngBuffer.length.toLocaleString()} bytes`);
 }
 
-main().catch((err: unknown) => {
-  console.error('[render-test] Fatal error:', err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+// Only run main() when executed directly (not when imported by tests)
+if (require.main === module) {
+  main().catch((err: unknown) => {
+    console.error('[render-test] Fatal error:', err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
+}

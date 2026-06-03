@@ -346,7 +346,10 @@ async function main(): Promise<void> {
   console.log(`[vision-test] Done — ${successCount} model(s) ran successfully.`);
 }
 
-main().catch((err: unknown) => {
-  console.error('[vision-test] Fatal error:', err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+// Only run main() when executed directly (not when imported by tests)
+if (require.main === module) {
+  main().catch((err: unknown) => {
+    console.error('[vision-test] Fatal error:', err instanceof Error ? err.message : err);
+    process.exit(1);
+  });
+}
