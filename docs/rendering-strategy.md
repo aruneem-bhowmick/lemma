@@ -92,6 +92,23 @@ via environment variables in future iterations if needed.
 
 ---
 
+## Spike Script API Notes
+
+The validation spike's `render-test.ts` exposes these exports for re-use and testing:
+
+| Export | Signature | Purpose |
+|--------|-----------|---------|
+| `isPdf` | `(buf: Buffer) → boolean` | Magic-byte check (`%PDF`); used by `main()` for content-based format detection |
+| `rasterizePdf` | `(pdfData: Buffer) → Promise<Buffer>` | Rasterises PDF page 1 at 150 DPI; accepts a pre-read buffer so the caller reads the file exactly once |
+| `normaliseToPng` | `(imageBuffer: Buffer) → Promise<Buffer>` | Converts any sharp-readable image to PNG and logs a warning if width < `MIN_WIDTH_PX` |
+| `MIN_WIDTH_PX` | `1668` | Minimum acceptable width for vision-model input |
+
+`main()` reads the input file **once**, passes the buffer to `isPdf()` for content-based
+format detection (more robust than extension-only detection), then passes the same buffer
+to `rasterizePdf()` or directly to `normaliseToPng()`.
+
+---
+
 ## Adding a New Render Strategy
 
 1. Create `src/pipeline/render-strategies/<name>.ts` and export an async
