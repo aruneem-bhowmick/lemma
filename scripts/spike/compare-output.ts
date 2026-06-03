@@ -8,7 +8,8 @@
  *   • Levenshtein distance from the expected output
  *   • Presence of each required callout type
  *   • Presence of at least one `$$` display-math block
- *   • Presence of a JSON block containing `"vertices"` and `"edges"` keys
+ *   • Presence of a complete graph adjacency JSON block (both `"vertices"`
+ *     and `"edges"` keys required)
  *
  * Outputs a ranked summary table sorted by Levenshtein distance (ascending).
  *
@@ -43,8 +44,12 @@ export interface ModelEvaluation {
   calloutPresence: Record<string, boolean>;
   /** Whether at least one `$$...$$` LaTeX display block is present. */
   hasLatexBlock: boolean;
-  /** Whether a JSON block containing `"vertices"` is present. */
-  hasAdjacencyJson: boolean;
+  /**
+   * Whether a complete graph adjacency JSON block is present — requires both
+   * a `"vertices"` key and an `"edges"` key.  A block with only `"vertices"`
+   * is not considered complete.
+   */
+  hasCompleteAdjacency: boolean;
 }
 
 // ─── Utility functions ────────────────────────────────────────────────────────
@@ -114,7 +119,8 @@ export function evaluateOutput(
     levenshteinDistance: distance(outputContent, expectedContent),
     calloutPresence: checkCalloutTypes(outputContent),
     hasLatexBlock: hasLatexBlock(outputContent),
-    hasAdjacencyJson: hasAdjacencyJson(outputContent),
+    // Both "vertices" and "edges" must be present for a complete adjacency block.
+    hasCompleteAdjacency: hasAdjacencyJson(outputContent) && hasEdgesKey(outputContent),
   };
 }
 
@@ -166,7 +172,7 @@ export function formatSummaryTable(ranked: ModelEvaluation[]): string {
     `${'Lev. Dist'.padEnd(12)}` +
     allCalloutTypes.map((t) => t.padEnd(12)).join('') +
     `${'LaTeX $$'.padEnd(10)}` +
-    `${'Adj. JSON'.padEnd(10)}`;
+    `${'Adj. full'.padEnd(10)}`;
 
   const divider = '─'.repeat(header.length);
 
@@ -178,7 +184,7 @@ export function formatSummaryTable(ranked: ModelEvaluation[]): string {
       .map((t) => (ev.calloutPresence[t] ? '✓' : '✗').padEnd(12))
       .join('');
     const latex = (ev.hasLatexBlock ? '✓' : '✗').padEnd(10);
-    const json = (ev.hasAdjacencyJson ? '✓' : '✗').padEnd(10);
+    const json = (ev.hasCompleteAdjacency ? '✓' : '✗').padEnd(10);
     return `${rank}${model}${lev}${callouts}${latex}${json}`;
   });
 
@@ -224,13 +230,13 @@ function main(): void {
   if (winner) {
     const allCalloutsPresent = Object.values(winner.calloutPresence).every(Boolean);
     const fullyQualified =
-      allCalloutsPresent && winner.hasLatexBlock && winner.hasAdjacencyJson;
+      allCalloutsPresent && winner.hasLatexBlock && winner.hasCompleteAdjacency;
 
     console.log(`Best model: ${winner.modelName}`);
     console.log(`  Levenshtein distance from ground truth: ${winner.levenshteinDistance}`);
     console.log(`  All required callouts present: ${allCalloutsPresent ? 'YES' : 'NO'}`);
     console.log(`  LaTeX display block present: ${winner.hasLatexBlock ? 'YES' : 'NO'}`);
-    console.log(`  Adjacency JSON present: ${winner.hasAdjacencyJson ? 'YES' : 'NO'}`);
+    console.log(`  Complete adjacency JSON present: ${winner.hasCompleteAdjacency ? 'YES' : 'NO'}`);
     console.log(`  Fully qualified winner: ${fullyQualified ? 'YES' : 'NO'}`);
   }
 }

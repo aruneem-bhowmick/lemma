@@ -326,9 +326,19 @@ describe('compare-output — evaluateOutput()', () => {
     expect(ev.hasLatexBlock).toBe(true);
   });
 
-  it('sets hasAdjacencyJson true when "vertices": appears in the output', () => {
+  it('sets hasCompleteAdjacency true when both "vertices" and "edges" are present', () => {
+    const ev = evaluateOutput('m', '"vertices": ["a"], "edges": [["a","b"]]', 'expected');
+    expect(ev.hasCompleteAdjacency).toBe(true);
+  });
+
+  it('sets hasCompleteAdjacency false when only "vertices" is present', () => {
     const ev = evaluateOutput('m', '"vertices": ["a"]', 'expected');
-    expect(ev.hasAdjacencyJson).toBe(true);
+    expect(ev.hasCompleteAdjacency).toBe(false);
+  });
+
+  it('sets hasCompleteAdjacency false when only "edges" is present', () => {
+    const ev = evaluateOutput('m', '"edges": [["a","b"]]', 'expected');
+    expect(ev.hasCompleteAdjacency).toBe(false);
   });
 
   it('reflects callout presence accurately', () => {
@@ -348,9 +358,9 @@ describe('compare-output — evaluateOutput()', () => {
 describe('compare-output — rankModels()', () => {
   it('sorts evaluations by Levenshtein distance ascending (best first)', () => {
     const evals = [
-      { modelName: 'c', levenshteinDistance: 500, calloutPresence: {}, hasLatexBlock: false, hasAdjacencyJson: false },
-      { modelName: 'a', levenshteinDistance: 100, calloutPresence: {}, hasLatexBlock: false, hasAdjacencyJson: false },
-      { modelName: 'b', levenshteinDistance: 300, calloutPresence: {}, hasLatexBlock: false, hasAdjacencyJson: false },
+      { modelName: 'c', levenshteinDistance: 500, calloutPresence: {}, hasLatexBlock: false, hasCompleteAdjacency: false },
+      { modelName: 'a', levenshteinDistance: 100, calloutPresence: {}, hasLatexBlock: false, hasCompleteAdjacency: false },
+      { modelName: 'b', levenshteinDistance: 300, calloutPresence: {}, hasLatexBlock: false, hasCompleteAdjacency: false },
     ];
     const ranked = rankModels(evals);
     expect(ranked[0].modelName).toBe('a');
@@ -360,8 +370,8 @@ describe('compare-output — rankModels()', () => {
 
   it('does not mutate the original array', () => {
     const input = [
-      { modelName: 'z', levenshteinDistance: 999, calloutPresence: {}, hasLatexBlock: false, hasAdjacencyJson: false },
-      { modelName: 'a', levenshteinDistance: 1, calloutPresence: {}, hasLatexBlock: false, hasAdjacencyJson: false },
+      { modelName: 'z', levenshteinDistance: 999, calloutPresence: {}, hasLatexBlock: false, hasCompleteAdjacency: false },
+      { modelName: 'a', levenshteinDistance: 1, calloutPresence: {}, hasLatexBlock: false, hasCompleteAdjacency: false },
     ];
     const ranked = rankModels(input);
     expect(input[0].modelName).toBe('z'); // original order preserved
@@ -374,7 +384,7 @@ describe('compare-output — rankModels()', () => {
 
   it('handles a single-element array', () => {
     const evals = [
-      { modelName: 'only', levenshteinDistance: 42, calloutPresence: {}, hasLatexBlock: true, hasAdjacencyJson: true },
+      { modelName: 'only', levenshteinDistance: 42, calloutPresence: {}, hasLatexBlock: true, hasCompleteAdjacency: true },
     ];
     expect(rankModels(evals)[0].modelName).toBe('only');
   });
@@ -425,7 +435,7 @@ describe('compare-output — formatSummaryTable()', () => {
       diagram: false,
     },
     hasLatexBlock: true,
-    hasAdjacencyJson: false,
+    hasCompleteAdjacency: false,
   };
 
   it('includes the model name in the output', () => {
@@ -479,9 +489,9 @@ describe('Winning model fixture — full evaluation round-trip', () => {
     expect(ev.calloutPresence['proof']).toBe(true);
     expect(ev.calloutPresence['diagram']).toBe(true);
 
-    // Must have LaTeX and adjacency JSON
+    // Must have LaTeX and complete adjacency JSON (both vertices and edges)
     expect(ev.hasLatexBlock).toBe(true);
-    expect(ev.hasAdjacencyJson).toBe(true);
+    expect(ev.hasCompleteAdjacency).toBe(true);
 
     // Distance from ground truth must be finite (output is close but not identical)
     expect(ev.levenshteinDistance).toBeGreaterThanOrEqual(0);
