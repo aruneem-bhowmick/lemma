@@ -1,3 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+
+# Environment secrets — never commit
+.env
+.env.local
+.env.*.local
+
 # Tool/editor directories
 .claude
 .history/
@@ -6,3 +18,9 @@
 
 # Project docs (non-source)
 docs-lemma/
+
+# Spike rendered output (generated at runtime — not source)
+scripts/spike/fixtures/rendered.png
+
+# Spike model outputs (generated at runtime — committed manually after bake-off)
+# scripts/spike/fixtures/*-output.md is intentionally tracked
