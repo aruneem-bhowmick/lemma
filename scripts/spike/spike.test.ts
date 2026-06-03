@@ -13,17 +13,15 @@
  *     without real API calls or file-system side-effects.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { statSync, readFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { describe, it, expect } from 'vitest';
+import { statSync, readFileSync, existsSync } from 'fs';
+import { join, isAbsolute } from 'path';
 
 // Static imports for each module under test (guarded main() runs only when
 // invoked directly via ts-node, not when imported here)
 import {
   isPdf,
   MIN_WIDTH_PX,
-  normaliseToPng,
 } from './render-test';
 
 import {
@@ -407,7 +405,6 @@ describe('compare-output — discoverOutputFiles()', () => {
   });
 
   it('returns filePath as an absolute path for each entry', () => {
-    const { isAbsolute } = require('path') as typeof import('path');
     const files = discoverOutputFiles(FIXTURES_DIR);
     files.forEach((f) => {
       expect(isAbsolute(f.filePath)).toBe(true);
