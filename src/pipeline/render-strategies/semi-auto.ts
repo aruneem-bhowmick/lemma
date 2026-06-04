@@ -68,6 +68,9 @@ function tryReadDropFile(dropDir: string, pageId: string): Buffer | null {
  * @param page - Page metadata; `page.id` determines the expected filename.
  * @returns JPEG buffer suitable for vision model input.
  * @throws Error if `SEMI_AUTO_DROP_DIR` is not set in the environment.
+ * @throws Error if `SEMI_AUTO_TIMEOUT_MS` is set to an invalid value and the
+ *   caller cannot tolerate check-once fallback behaviour (the strategy will
+ *   warn and proceed rather than throw on misconfiguration).
  * @throws Error if the expected PDF is not found within the timeout period.
  * @throws Error if PDF rasterisation fails.
  */
@@ -80,7 +83,18 @@ export async function semiAutoStrategy(page: PageMeta): Promise<Buffer> {
     );
   }
 
-  const timeoutMs = parseInt(process.env.SEMI_AUTO_TIMEOUT_MS ?? '0', 10);
+  const rawTimeout = process.env.SEMI_AUTO_TIMEOUT_MS ?? '0';
+  const parsedTimeout = Number(rawTimeout);
+  let timeoutMs: number;
+  if (!Number.isFinite(parsedTimeout) || !Number.isInteger(parsedTimeout) || parsedTimeout < 0) {
+    console.warn(
+      `[semi-auto] SEMI_AUTO_TIMEOUT_MS='${rawTimeout}' is not a valid non-negative integer; ` +
+        `falling back to 0 (check-once mode).`,
+    );
+    timeoutMs = 0;
+  } else {
+    timeoutMs = parsedTimeout;
+  }
 
   let rawBuffer = tryReadDropFile(dropDir, page.id);
 
