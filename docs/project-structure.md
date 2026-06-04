@@ -90,7 +90,7 @@ The Graph module is a thin HTTP wrapper around the Microsoft OneNote Graph API. 
 
 **`types.ts`** contains the Graph API response interfaces (`GraphPage`, `GraphPageList`, `GraphSection`).
 
-No pipeline stage imports from `src/graph/` directly — `GraphClient` is instantiated by the pipeline orchestrator and passed as a parameter.
+`discoverPages` in `discover.ts` is an explicit exception to the general pattern: it directly imports `GraphClient` from `src/graph/client.ts` and instantiates it internally, because discovery is the stage that originates every pipeline run and has no upstream caller to inject a client. All other pipeline stages do not import `src/graph/` directly; they receive any Graph-derived data as typed function parameters from the orchestrator.
 
 ### `src/db/`
 
