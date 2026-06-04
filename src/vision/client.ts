@@ -213,13 +213,22 @@ export class VisionClient {
         if (hasHttpStatus(err)) {
           const status = err.status;
           const retryable = status === 429 || (status >= 500 && status < 600);
+
+          if (!retryable) {
+            throw new VisionError(
+              `Vision API error (HTTP ${status}): ${err.message}`,
+              this.model,
+              status,
+            );
+          }
+
           lastError = new VisionError(
             `Vision API error (HTTP ${status}): ${err.message}`,
             this.model,
             status,
           );
 
-          if (retryable && attempt < MAX_RETRIES) {
+          if (attempt < MAX_RETRIES) {
             continue;
           }
         } else {
