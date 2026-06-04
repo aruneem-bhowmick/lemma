@@ -15,7 +15,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { statSync, readFileSync, existsSync } from 'fs';
-import { join, isAbsolute } from 'path';
+import { join, isAbsolute, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Static imports for each module under test (guarded main() runs only when
 // invoked directly via ts-node, not when imported here)
