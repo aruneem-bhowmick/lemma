@@ -21,7 +21,7 @@
  *   4. Run the pipeline — it will find, rasterise, and process the file.
  */
 
-import { existsSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { PageMeta } from '../../types.js';
 import { rasterizePdfBuffer } from './pdf-export.js';
@@ -30,16 +30,27 @@ import { rasterizePdfBuffer } from './pdf-export.js';
 const POLL_INTERVAL_MS = 200;
 
 /**
- * Checks whether a PDF file exists for the given page in the drop directory.
+ * Attempts to read a PDF for the given page from the drop directory.
+ *
+ * Uses a single `readFileSync` call rather than an `existsSync` + `readFileSync`
+ * pair to avoid the TOCTOU race where a file could be deleted or replaced between
+ * the existence check and the read. ENOENT (file absent) is the expected
+ * not-yet-ready case and returns `null`; any other error (e.g. EISDIR, EACCES)
+ * indicates an unexpected problem and is re-thrown so it surfaces clearly.
  *
  * @param dropDir - Path to the drop folder.
  * @param pageId  - OneNote page identifier; the expected filename is `<pageId>.pdf`.
- * @returns Raw PDF bytes if the file is present, otherwise `null`.
+ * @returns Raw PDF bytes if the file is present and readable, otherwise `null`.
+ * @throws The original error for any file-system failure other than ENOENT.
  */
 function tryReadDropFile(dropDir: string, pageId: string): Buffer | null {
   const filePath = join(dropDir, `${pageId}.pdf`);
-  if (!existsSync(filePath)) return null;
-  return readFileSync(filePath);
+  try {
+    return readFileSync(filePath);
+  } catch (err) {
+    if ((err as { code?: string }).code === 'ENOENT') return null;
+    throw err;
+  }
 }
 
 /**
