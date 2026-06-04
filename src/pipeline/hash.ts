@@ -23,7 +23,8 @@ import { createHash } from 'crypto';
  * Typical use: fingerprint a rendered page image so that re-renders of an
  * unchanged page produce the same hash and can be skipped in later runs.
  *
- * @param buf - The buffer to hash.  Must be a non-empty Node.js `Buffer`.
+ * @param buf - The buffer to hash.  Empty buffers (`Buffer.alloc(0)`) are
+ *              valid; SHA-256 of zero bytes produces a well-defined digest.
  * @returns A lowercase hex digest prefixed with `'sha256:'` (71 characters
  *          total: 7-character prefix + 64-character hex digest).
  */
