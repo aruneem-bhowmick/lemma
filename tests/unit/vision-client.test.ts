@@ -261,23 +261,27 @@ describe('VisionError', () => {
     mockCreate.mockRejectedValue(makeApiError(429));
 
     const client = new VisionClient();
-    const err = await client
-      .convert('base64', 'Title', 'Section')
-      .catch((e: VisionError) => e);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let caught: any = null;
+    await client.convert('base64', 'Title', 'Section').catch((e: unknown) => {
+      caught = e;
+    });
 
-    expect(err).toBeInstanceOf(VisionError);
-    expect(err.model).toBe('claude-sonnet-4-6');
+    expect(caught).toBeInstanceOf(VisionError);
+    expect(caught.model).toBe('claude-sonnet-4-6');
   });
 
   it('carries the HTTP status code from the API error', async () => {
     mockCreate.mockRejectedValue(makeApiError(429));
 
     const client = new VisionClient();
-    const err = await client
-      .convert('base64', 'Title', 'Section')
-      .catch((e: VisionError) => e);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let caught: any = null;
+    await client.convert('base64', 'Title', 'Section').catch((e: unknown) => {
+      caught = e;
+    });
 
-    expect(err.httpStatus).toBe(429);
+    expect(caught.httpStatus).toBe(429);
   });
 
   it('reports retryable: true for 429', () => {
