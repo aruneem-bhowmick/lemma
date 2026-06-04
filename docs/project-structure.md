@@ -78,7 +78,7 @@ Key interfaces:
 
 Each file corresponds to exactly one pipeline stage. Stages receive typed inputs and return typed outputs; they do not share mutable state. The orchestrator (`index.ts`) is the only file that imports multiple stages.
 
-**`discover.ts`** implements `discoverPages(notebookId)`, the first pipeline stage. It calls `GraphClient.listPages()`, maps each `GraphPage` to a `PageMeta`, and upserts every page into the manifest using an `INSERT … ON CONFLICT` query. New pages are inserted with `status = 'pending'`; existing pages have only their title, section, and `last_modified` refreshed — processing state (`status`, `content_hash`, `markdown_path`) is never overwritten. All manifest reads and upserts run in parallel via `Promise.all`. See [docs/pipeline-discovery.md](pipeline-discovery.md) for the full design and configuration reference.
+**`discover.ts`** implements `discoverPages(notebookId)`, the first pipeline stage. It calls `GraphClient.listPages()`, maps each `GraphPage` to a `PageMeta`, and upserts every page into the manifest using an `INSERT … ON CONFLICT` query. New pages are inserted with `status = 'pending'`; existing pages have only their title, section, and `last_modified` refreshed — processing state (`status`, `content_hash`, `markdown_path`) is never overwritten. Manifest reads and upserts are issued in bounded-concurrent chunks of 50 to avoid saturating the connection pool on large notebooks. See [docs/pipeline-discovery.md](pipeline-discovery.md) for the full design and configuration reference.
 
 ### `src/graph/`
 
