@@ -230,9 +230,32 @@ export class GraphClient {
       if (pdfResponse.ok) {
         const contentType = pdfResponse.headers.get('Content-Type') ?? '';
 
-        if (contentType.includes('image/')) {
-          // Some Graph endpoints return an image even when Accept: application/pdf is sent.
+        if (contentType.startsWith('image/jpeg')) {
+          // Graph returned a JPEG directly — use it as-is.
           return pdfResponse.arrayBuffer();
+        }
+
+        if (contentType.startsWith('image/')) {
+          // Graph returned a non-JPEG image (e.g. image/png). Re-encode to JPEG
+          // so the method contract (always returns JPEG bytes) is honoured.
+          const imageBuffer = await pdfResponse.arrayBuffer();
+          try {
+            const sharpModule = await import('sharp');
+            const jpegBuffer = await sharpModule
+              .default(Buffer.from(imageBuffer))
+              .jpeg({ quality: 92 })
+              .toBuffer();
+            return jpegBuffer.buffer.slice(
+              jpegBuffer.byteOffset,
+              jpegBuffer.byteOffset + jpegBuffer.byteLength,
+            ) as ArrayBuffer;
+          } catch (err) {
+            throw new GraphError(
+              `Failed to convert ${contentType} to JPEG for page ${pageId}: ${(err as Error).message}`,
+              0,
+              'rasterizationFailed',
+            );
+          }
         }
 
         // Convert the PDF buffer to JPEG using pdfjs-dist + sharp.
