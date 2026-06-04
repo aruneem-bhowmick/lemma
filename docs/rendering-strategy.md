@@ -117,11 +117,18 @@ HTTP 415).
 The user exports a OneNote section or page to PDF from the iPad or desktop
 app and places it in the configured drop folder. The strategy:
 
-1. Looks for a file named `<page.id>.pdf` in `SEMI_AUTO_DROP_DIR`.
-2. If `SEMI_AUTO_TIMEOUT_MS > 0`, polls every 200 ms until the file appears
-   or the deadline passes. If timeout is 0 (default), a single check is
-   performed.
-3. Rasterises the PDF with `rasterizePdfBuffer` (pdfjs-dist + sharp at ~150
+1. Validates `SEMI_AUTO_TIMEOUT_MS`: accepts a non-negative integer only.
+   Non-numeric strings (e.g. `abc`), negative values (e.g. `-1`), and
+   decimals (e.g. `1.5`) are rejected with a `console.warn` that names the
+   offending value, and the strategy falls back to check-once mode (0 ms).
+2. Attempts to read `<page.id>.pdf` from `SEMI_AUTO_DROP_DIR` with a single
+   `readFileSync` call. An ENOENT result (file not yet present) is treated as
+   a not-ready signal; any other file-system error (EISDIR, EACCES, etc.) is
+   re-thrown immediately.
+3. If `SEMI_AUTO_TIMEOUT_MS > 0`, polls every 200 ms until the file appears
+   or the deadline passes. If timeout is 0 (the default), a single attempt
+   is made.
+4. Rasterises the PDF with `rasterizePdfBuffer` (pdfjs-dist + sharp at ~150
    DPI, JPEG quality 92).
 
 **When this strategy works:** all personal Microsoft account pages, regardless
@@ -139,7 +146,16 @@ of whether the ink export endpoint is available.
 ```bash
 RENDER_STRATEGY=semi-auto
 SEMI_AUTO_DROP_DIR=./drop
-SEMI_AUTO_TIMEOUT_MS=0    # 0 = check once; >0 = wait up to N ms
+SEMI_AUTO_TIMEOUT_MS=0    # 0 = check once; must be a non-negative integer
+```
+
+**`SEMI_AUTO_TIMEOUT_MS` validation:** the value must be a non-negative integer
+(e.g. `0`, `5000`, `30000`). Decimals, negative numbers, and non-numeric
+strings are rejected at runtime: a warning naming the offending value is
+emitted and the timeout defaults to 0. Example warning:
+
+```text
+[semi-auto] SEMI_AUTO_TIMEOUT_MS='not-a-number' is not a valid non-negative integer; falling back to 0 (check-once mode).
 ```
 
 ---
@@ -277,7 +293,7 @@ failed page in its `errors` array.
 |-------------------------|----------------|-------------------------------------------------------|
 | `RENDER_STRATEGY`       | `pdf-export`   | Primary strategy (`pdf-export`, `semi-auto`, `inkml-raster`) |
 | `SEMI_AUTO_DROP_DIR`    | —              | Drop folder path (required when strategy is `semi-auto`) |
-| `SEMI_AUTO_TIMEOUT_MS`  | `0`            | Max wait for drop-folder file in ms; 0 = check once  |
+| `SEMI_AUTO_TIMEOUT_MS`  | `0`            | Max wait for drop-folder file in ms; must be a non-negative integer; invalid values warn and fall back to 0 |
 
 ---
 
