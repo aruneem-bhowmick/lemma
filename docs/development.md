@@ -1,6 +1,6 @@
 # Development Setup
 
-Step-by-step guide to getting a local development environment running for the Lemma Phase 1 pipeline.
+Step-by-step guide to getting a local development environment running for the Lemma sync pipeline.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ Step-by-step guide to getting a local development environment running for the Le
 
 Optional for full pipeline execution:
 - A Microsoft personal account with OneNote notebooks
-- An Azure AD app registration (see `docs-lemma/auth-setup.md` — Prompt 3)
+- An Azure AD app registration (see `docs-lemma/auth-setup.md`)
 - An Anthropic API key
 
 ## Initial Setup
@@ -26,7 +26,7 @@ npm install
 cp .env.example .env
 
 # 3. Fill in the required values in .env
-#    At minimum you need DATABASE_URL for integration tests
+#    At minimum you need TEST_DATABASE_URL for integration tests
 #    and ANTHROPIC_API_KEY for vision conversion.
 ```
 
@@ -46,7 +46,8 @@ All variables are documented in `.env.example`. The most important ones for loca
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DATABASE_URL` | Yes (integration tests) | Postgres connection string |
+| `DATABASE_URL` | Yes (pipeline/migrations) | Postgres connection string for the pipeline and migration runner |
+| `TEST_DATABASE_URL` | Yes (integration tests) | Separate test database — never use the production URL here |
 | `ANTHROPIC_API_KEY` | Yes (pipeline) | Vision LLM access |
 | `AZURE_CLIENT_ID` | Yes (pipeline) | Graph API auth |
 | `GRAPH_REFRESH_TOKEN` | Yes (pipeline) | Long-lived OAuth token |
@@ -68,13 +69,15 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Integration tests require `TEST_DATABASE_URL` set and are skipped otherwise:
+**Unit tests** (default): no environment variables required — all external dependencies are mocked.
+
+**Integration tests** require `TEST_DATABASE_URL` pointing to a _test_ database (never production — the suite truncates the `pages` table between test cases):
 
 ```bash
-TEST_DATABASE_URL=postgres://... npm test
+TEST_DATABASE_URL=postgres://postgres@localhost/lemma_test npm test
 ```
 
-Live Graph API tests require `GRAPH_LIVE=true` and all `AZURE_*` / `GRAPH_REFRESH_TOKEN` values set:
+**Live Graph API tests** require `GRAPH_LIVE=true` and all `AZURE_*` / `GRAPH_REFRESH_TOKEN` values set:
 
 ```bash
 GRAPH_LIVE=true npm test
@@ -104,11 +107,40 @@ DRY_RUN=true npm run pipeline
 
 ## Database Setup
 
-When implementing Prompt 2, run migrations before first use:
+The pipeline stores per-page processing state in a PostgreSQL `pages` table.  You need a running Postgres instance (≥ 14) before the pipeline or integration tests can use the database.
+
+### 1. Create databases
 
 ```bash
-npm run db:migrate
+# Production / local dev database
+createdb lemma
+
+# Separate test database — never share with production
+createdb lemma_test
 ```
+
+### 2. Configure DATABASE_URL
+
+In your `.env`:
+
+```
+DATABASE_URL=postgres://postgres@localhost/lemma
+TEST_DATABASE_URL=postgres://postgres@localhost/lemma_test
+```
+
+### 3. Run migrations
+
+```bash
+# Apply the pages table migration
+npm run db:migrate
+
+# Dry-run: print migration SQL without executing
+npm run db:migrate -- --check
+```
+
+The migration runner executes every `.sql` file in `src/db/migrations/` inside a single transaction.  It exits with code `0` on success and `1` on error.
+
+See [docs/database.md](database.md) for the full schema reference, column descriptions, and query function documentation.
 
 ## Project Layout Quick Reference
 
@@ -119,6 +151,6 @@ See [docs/project-structure.md](project-structure.md) for the full directory lay
 - **Module system:** ESM throughout. Use `import`/`export`; no `require()` in `src/`.
 - **No `.js` extensions in imports:** `moduleResolution: bundler` resolves TypeScript files without explicit extensions.
 - **Types first:** all public APIs use the interfaces defined in `src/types.ts`.
-- **Stub pattern:** unimplemented stubs throw `new Error('... not yet implemented — see Prompt N')` so failures are loud and traceable.
+- **Stub pattern:** unimplemented stubs throw `new Error('... not yet implemented')` so failures are loud and traceable.
 - **JSDoc:** every exported function and class must have a JSDoc block (required for 80 % docstring coverage threshold).
 - **Tests:** unit tests in `tests/unit/`, integration tests in `tests/integration/`. Mock all external dependencies in unit tests.

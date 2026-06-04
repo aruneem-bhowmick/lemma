@@ -1,6 +1,6 @@
 # Project Structure
 
-This document describes the repository layout established by the Phase 1 scaffold and the role of every top-level directory.
+This document describes the repository layout and the role of every top-level directory.
 
 ## Directory Overview
 
@@ -32,9 +32,9 @@ lemma/
 │
 ├── scripts/                ← Runnable CLI scripts
 │   ├── run-pipeline.ts     ← Entry point: loads .env, calls runPipeline()
-│   ├── db-migrate.ts       ← Migration runner (Prompt 2)
-│   ├── auth-check.ts       ← Graph auth health check (Prompt 3)
-│   └── spike/              ← Validation spike artifacts (Prompt 0, read-only)
+│   ├── db-migrate.ts       ← Migration runner (wraps migrations/ in a transaction)
+│   ├── auth-check.ts       ← Graph auth health check script
+│   └── spike/              ← Validation spike artifacts (read-only)
 │
 ├── corpus/                 ← Generated Markdown pages (git-tracked)
 │   └── <section-slug>/
@@ -68,7 +68,7 @@ The single source of truth for all public interfaces. Every other module imports
 
 Key interfaces:
 - `PageMeta` — lightweight representation of a Graph API page (id, title, section, lastModifiedDateTime)
-- `ManifestEntry` — a full `pages` table row, including processing status and content hash
+- `ManifestEntry` — a full `pages` table row, including processing status, content hash, and error message
 - `DiagramData` — structured adjacency data extracted from `[!diagram]` callouts
 - `ConvertedPage` — the fully assembled output of the convert stage
 - `PipelineResult` — summary counts returned by `runPipeline()`
@@ -83,11 +83,17 @@ Each file corresponds to exactly one pipeline stage. Stages receive typed inputs
 
 ### `src/db/`
 
-`client.ts` exports a single `sql` tagged-template instance. `queries.ts` contains all SQL as named typed functions. No SQL string is ever built by concatenation; every value is a parameter.
+`client.ts` exports a single postgres.js `Sql` instance (`db`) backed by a connection pool (`max: 5`, `idle_timeout: 20s`).  It throws a descriptive error at import time when `DATABASE_URL` is not set.
+
+`queries.ts` contains all SQL as named typed functions against `ManifestEntry`.  Every value is an interpolated parameter in the postgres.js tagged-template syntax — no SQL string is ever constructed by concatenation.
+
+`migrations/001_pages.sql` is the DDL for the `pages` manifest table.  Run it via `npm run db:migrate`.  The migration runner (`scripts/db-migrate.ts`) wraps all files in a single transaction and accepts `--check` for a dry-run print.
+
+See [docs/database.md](database.md) for the full schema reference, column descriptions, and query function documentation.
 
 ### `src/vision/client.ts`
 
-`VisionClient` wraps the Anthropic SDK. It is model-agnostic: the active model is read from the `VISION_MODEL` environment variable (defaulting to `claude-sonnet-4-6`). Prompt content lives in `src/vision/prompt.ts` (Prompt 7).
+`VisionClient` wraps the Anthropic SDK. It is model-agnostic: the active model is read from the `VISION_MODEL` environment variable (defaulting to `claude-sonnet-4-6`). Prompt content lives in `src/vision/prompt.ts`.
 
 ## TypeScript Configuration
 
