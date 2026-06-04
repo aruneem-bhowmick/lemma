@@ -102,6 +102,14 @@ npx vitest run tests/integration/discover-integration.test.ts
 
 See [docs/pipeline-discovery.md](pipeline-discovery.md) for the full list of assertions these tests make.
 
+**Change detection and hashing unit tests** run entirely in memory — no environment variables required:
+
+```bash
+npx vitest run tests/unit/detect.test.ts tests/unit/hash.test.ts
+```
+
+The suite verifies all four classification conditions (new, modified, retrying, skipped), confirms that all manifest reads are issued in a single `Promise.all` batch, and checks the log-line format. See [docs/pipeline-change-detection.md](pipeline-change-detection.md) for a full description of the test coverage.
+
 ## Building and Linting
 
 ```bash

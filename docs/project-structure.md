@@ -11,6 +11,7 @@ lemma/
 │   ├── pipeline/           ← Five ordered pipeline stages + orchestrator
 │   │   ├── discover.ts     ← Stage 1: list pages from Graph API, seed manifest
 │   │   ├── detect.ts       ← Stage 2: hash-based change detection
+│   │   ├── hash.ts         ← SHA-256 utilities shared by detect and render stages
 │   │   ├── render.ts       ← Stage 3: Graph API fetch → JPEG buffer
 │   │   ├── convert.ts      ← Stage 4: vision LLM → structured Markdown
 │   │   ├── write.ts        ← Stage 5: compose .md file, update manifest
@@ -79,6 +80,10 @@ Key interfaces:
 Each file corresponds to exactly one pipeline stage. Stages receive typed inputs and return typed outputs; they do not share mutable state. The orchestrator (`index.ts`) is the only file that imports multiple stages.
 
 **`discover.ts`** implements `discoverPages(notebookId)`, the first pipeline stage. It calls `GraphClient.listPages()`, maps each `GraphPage` to a `PageMeta`, and upserts every page into the manifest using an `INSERT … ON CONFLICT` query. New pages are inserted with `status = 'pending'`; existing pages have only their title, section, and `last_modified` refreshed — processing state (`status`, `content_hash`, `markdown_path`) is never overwritten. Manifest reads and upserts are issued in bounded-concurrent chunks of 50 to avoid saturating the connection pool on large notebooks. See [docs/pipeline-discovery.md](pipeline-discovery.md) for the full design and configuration reference.
+
+**`detect.ts`** implements `detectChanges(pages)`, the second pipeline stage. It issues a single parallel `Promise.all` over all pages, fetching each page's manifest entry, then classifies each page into one of four categories: new (no entry, or status `'pending'`), modified (`lastModifiedDateTime` has advanced), retrying (status `'failed'`), or skipped (status `'processed'` with unchanged timestamp). Only the first three categories are returned for processing. This is the primary mechanism that makes daily runs cheap: a notebook with 100 pages where 2 changed processes exactly 2. See [docs/pipeline-change-detection.md](pipeline-change-detection.md) for the full design and rationale.
+
+**`hash.ts`** exports two pure utility functions: `hashBuffer(buf)` and `hashString(s)`, both returning a SHA-256 hex digest prefixed with `'sha256:'`. `hashBuffer` is used by the render stage to fingerprint each rendered JPEG; `hashString` is available for lightweight pre-filter comparisons. The `'sha256:'` prefix makes the algorithm self-describing, so the stored hash values carry enough context to support algorithm migration in the future.
 
 ### `src/graph/`
 
