@@ -11,9 +11,9 @@ configuration changes.
 | Slot | Model | Version | Set by |
 |------|-------|---------|--------|
 | Vision conversion | **Claude claude-sonnet-4-6** | Anthropic API | Validation spike |
-| Embedding | TBD (Phase 2) | — | Phase 2 scaffolding |
-| Generation (Q&A) | TBD (Phase 2) | — | Phase 2 scaffolding |
-| Triple extraction | TBD (Phase 3) | — | Phase 3 scaffolding |
+| Embedding | TBD | — | Not yet implemented |
+| Generation (Q&A) | TBD | — | Not yet implemented |
+| Triple extraction | TBD | — | Not yet implemented |
 
 ### Environment variable
 
@@ -114,7 +114,7 @@ The chosen model will be wired into the pipeline via `src/vision/client.ts` (`Vi
 configured by the `VISION_MODEL` environment variable (defaulting to `claude-sonnet-4-6`).
 `VisionClient` is currently a stub — it does not yet read `VISION_MODEL` or invoke any API.
 Full implementation (including env-var wiring and the system prompt from the spike) is
-planned as part of Prompt 7.
+pending.
 
 See [Project Structure](project-structure.md) for the full module layout and
 [Development Setup](development.md) for how to run the pipeline with a real API key.
