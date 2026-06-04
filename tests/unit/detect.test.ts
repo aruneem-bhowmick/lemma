@@ -57,6 +57,7 @@ function makePageMeta(id: string, ts = '2024-01-15T10:00:00.000Z'): PageMeta {
     title: `Page ${id}`,
     section: 'Graph Theory',
     lastModifiedDateTime: ts,
+    contentUrl: `https://graph.microsoft.com/v1.0/me/onenote/pages/${id}/content`,
   };
 }
 

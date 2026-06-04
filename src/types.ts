@@ -16,6 +16,8 @@ export interface PageMeta {
   section: string;
   /** ISO 8601 timestamp of the last modification from Graph API. */
   lastModifiedDateTime: string;
+  /** Graph API URL for fetching the page's rendered content or export. */
+  contentUrl: string;
 }
 
 /** A single row in the `pages` manifest table. */
