@@ -4,7 +4,7 @@ This document describes the repository layout established by the Phase 1 scaffol
 
 ## Directory Overview
 
-```
+```text
 lemma/
 ├── src/                    ← All application source code
 │   ├── types.ts            ← Shared TypeScript interfaces (PageMeta, ConvertedPage, …)
@@ -52,7 +52,7 @@ lemma/
 
 The five pipeline stages have a strict left-to-right dependency:
 
-```
+```text
 discoverPages → detectChanges → renderPage → convertPage → writePage
      │                │              │             │            │
   GraphClient      db/queries     GraphClient  VisionClient  db/queries
