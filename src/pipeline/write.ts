@@ -8,6 +8,7 @@
  * Implemented in full by Prompt 10.
  */
 
+import { createHash } from 'crypto';
 import type { ConvertedPage } from '../types.js';
 
 /** Output of the write stage for a single page. */
@@ -39,15 +40,31 @@ export async function writePage(page: ConvertedPage, corpusDir: string): Promise
 /**
  * Converts a section display name to a URL-safe slug.
  *
- * Lowercases the input, replaces spaces with hyphens, and removes any
- * characters that are not alphanumeric or hyphens.
+ * First decomposes Unicode characters via NFD normalization and strips
+ * combining diacritical marks so accented Latin letters (e.g. 'é' → 'e')
+ * survive the ASCII reduction step.  Then lowercases, converts spaces to
+ * hyphens, and removes remaining non-alphanumeric characters.
  *
- * @param section - Raw section name (e.g. 'Graph Theory').
- * @returns Slug string (e.g. 'graph-theory').
+ * When the result would be empty (e.g. for CJK or emoji-only names), a
+ * deterministic fallback slug is returned — "untitled-section-<8-char hash>"
+ * derived from the original string — so the corpus path
+ * <corpusDir>/<sectionSlug>/<pageId>.md is always valid.
+ *
+ * @param section - Raw section name (e.g. 'Graph Theory', '数学').
+ * @returns Non-empty slug string (e.g. 'graph-theory', 'untitled-section-8d08a8b7').
  */
 export function slugifySection(section: string): string {
-  return section
+  const slug = section
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
+
+  if (slug === '') {
+    const shortHash = createHash('sha256').update(section).digest('hex').slice(0, 8);
+    return `untitled-section-${shortHash}`;
+  }
+
+  return slug;
 }

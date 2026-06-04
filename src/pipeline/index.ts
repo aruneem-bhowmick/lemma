@@ -35,6 +35,24 @@ export interface RunPipelineOptions {
  * @throws Error if the discovery stage fails (cannot continue without the page list).
  */
 export async function runPipeline(options?: RunPipelineOptions): Promise<PipelineResult> {
+  const notebookId = options?.notebookId ?? process.env.ONENOTE_NOTEBOOK_ID;
+
+  if (!notebookId) {
+    return {
+      processed: 0,
+      skipped: 0,
+      failed: 1,
+      errors: [
+        {
+          pageId: 'N/A',
+          error:
+            'ONENOTE_NOTEBOOK_ID is not set — pipeline cannot discover pages without a notebook ID',
+        },
+      ],
+    };
+  }
+
+  // Full orchestration implemented by Prompt 11.
   void options;
   return { processed: 0, skipped: 0, failed: 0, errors: [] };
 }
