@@ -16,6 +16,7 @@ lemma/
 │   │   ├── write.ts        ← Stage 5: compose .md file, update manifest
 │   │   └── index.ts        ← Orchestrator: runs stages 1–5 with concurrency cap
 │   ├── graph/              ← Microsoft Graph API wrapper
+│   │   ├── auth.ts         ← OAuth 2.0 refresh-token flow + in-process token cache
 │   │   ├── client.ts       ← GraphClient class (token refresh, pagination, fallback)
 │   │   └── types.ts        ← GraphPage, GraphPageList, GraphSection interfaces
 │   ├── db/                 ← PostgreSQL manifest layer
@@ -33,7 +34,7 @@ lemma/
 ├── scripts/                ← Runnable CLI scripts
 │   ├── run-pipeline.ts     ← Entry point: loads .env, calls runPipeline()
 │   ├── db-migrate.ts       ← Migration runner (wraps migrations/ in a transaction)
-│   ├── auth-check.ts       ← Graph auth health check script
+│   ├── auth-check.ts       ← Graph API auth health check (exits 0/1; used in CI)
 │   └── spike/              ← Validation spike artifacts (read-only)
 │
 ├── corpus/                 ← Generated Markdown pages (git-tracked)
@@ -77,9 +78,17 @@ Key interfaces:
 
 Each file corresponds to exactly one pipeline stage. Stages receive typed inputs and return typed outputs; they do not share mutable state. The orchestrator (`index.ts`) is the only file that imports multiple stages.
 
-### `src/graph/client.ts`
+### `src/graph/`
 
-`GraphClient` is a thin HTTP wrapper. It does not interpret or transform page content — that belongs to the pipeline stages. Its sole responsibilities are authentication, pagination, retry, and rate-limit backoff.
+The Graph module is a thin HTTP wrapper around the Microsoft OneNote Graph API.  It contains three files:
+
+**`auth.ts`** owns the OAuth 2.0 lifecycle.  `acquireToken()` uses the refresh-token grant (the only viable server-side flow for personal Microsoft accounts) and keeps an in-process cache so the token endpoint is called at most once per pipeline run.  `isTokenValid()` is a pure function that applies a 60-second expiry buffer.  `AuthError` (extends `Error`) carries an OAuth `code` field so callers can branch on specific failure modes without string-parsing.  See `docs/auth-setup.md` for the one-time setup procedure.
+
+**`client.ts`** implements `GraphClient`.  Its private `_get()` method injects the `Authorization` header, logs every request to stderr, retries once on 401 (re-acquire + retry), and applies up to three Retry-After-aware retries on 429.  `listPages()` follows `@odata.nextLink` pagination; `renderPageAsImage()` prefers `image/jpeg` and falls back to `application/pdf` + rasterization on 415/404; `healthCheck()` is used by `scripts/auth-check.ts`.
+
+**`types.ts`** contains the Graph API response interfaces (`GraphPage`, `GraphPageList`, `GraphSection`).
+
+No pipeline stage imports from `src/graph/` directly — `GraphClient` is instantiated by the pipeline orchestrator and passed as a parameter.
 
 ### `src/db/`
 
