@@ -12,7 +12,11 @@ lemma/
 │   │   ├── discover.ts     ← Stage 1: list pages from Graph API, seed manifest
 │   │   ├── detect.ts       ← Stage 2: hash-based change detection
 │   │   ├── hash.ts         ← SHA-256 utilities shared by detect and render stages
-│   │   ├── render.ts       ← Stage 3: Graph API fetch → JPEG buffer
+│   │   ├── render.ts       ← Stage 3: orchestrates rendering via strategy chain
+│   │   ├── render-strategies/
+│   │   │   ├── pdf-export.ts   ← Strategy A: Graph export + rasterizePdfBuffer
+│   │   │   ├── semi-auto.ts    ← Strategy B: local drop-folder PDF (personal accounts)
+│   │   │   └── inkml-raster.ts ← Strategy C: stub (not yet implemented)
 │   │   ├── convert.ts      ← Stage 4: vision LLM → structured Markdown
 │   │   ├── write.ts        ← Stage 5: compose .md file, update manifest
 │   │   └── index.ts        ← Orchestrator: runs stages 1–5 with concurrency cap
@@ -84,6 +88,14 @@ Each file corresponds to exactly one pipeline stage. Stages receive typed inputs
 **`detect.ts`** implements `detectChanges(pages)`, the second pipeline stage. It issues a single parallel `Promise.all` over all pages, fetching each page's manifest entry, then classifies each page into one of four categories: new (no entry, or status `'pending'`), modified (`lastModifiedDateTime` has advanced), retrying (status `'failed'`), or skipped (status `'processed'` with unchanged timestamp). Only the first three categories are returned for processing. This is the primary mechanism that makes daily runs cheap: a notebook with 100 pages where 2 changed processes exactly 2. See [docs/pipeline-change-detection.md](pipeline-change-detection.md) for the full design and rationale.
 
 **`hash.ts`** exports two pure utility functions: `hashBuffer(buf)` and `hashString(s)`, both returning a SHA-256 hex digest prefixed with `'sha256:'`. `hashBuffer` is used by the render stage to fingerprint each rendered JPEG; `hashString` is available for lightweight pre-filter comparisons. The `'sha256:'` prefix makes the algorithm self-describing, so the stored hash values carry enough context to support algorithm migration in the future.
+
+**`render.ts`** implements `renderPage(page, graphClient)`, the third pipeline stage. It orchestrates a strategy fallback chain (`pdf-export → semi-auto → inkml-raster`) controlled by the `RENDER_STRATEGY` environment variable. Each attempt is delegated to the corresponding module in `render-strategies/`. If the primary strategy throws, a warning is logged and the next strategy is tried. After a successful render the raw buffer is normalised to JPEG quality 92 via `sharp`, and two quality warnings are emitted when the image is narrower than 1 668 px or smaller than 50 KB. A `RenderError` is thrown only when every strategy is exhausted; it carries the `pageId` so the orchestrator can record a targeted per-page failure without aborting the run. See [docs/rendering-strategy.md](rendering-strategy.md) for the full design, strategy descriptions, and configuration reference.
+
+**`render-strategies/`** contains the three pluggable rendering strategies:
+
+- `pdf-export.ts` — calls `GraphClient.renderPageAsImage()` and, if the returned bytes are raw PDF (magic-byte check), rasterises page 1 using `rasterizePdfBuffer` (pdfjs-dist + sharp at ~150 DPI). Also exports `rasterizePdfBuffer` for re-use by `semi-auto.ts`.
+- `semi-auto.ts` — reads a manually placed `<pageId>.pdf` from `SEMI_AUTO_DROP_DIR`, optionally polling up to `SEMI_AUTO_TIMEOUT_MS` milliseconds, then rasterises via `rasterizePdfBuffer`. This is the primary strategy for personal Microsoft accounts where the Graph ink-export endpoint returns 415.
+- `inkml-raster.ts` — stub that always throws, reserving the strategy slot in the fallback chain for future InkML → SVG → PNG rendering work.
 
 ### `src/graph/`
 

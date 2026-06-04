@@ -53,6 +53,9 @@ All variables are documented in `.env.example`. The most important ones for loca
 | `GRAPH_REFRESH_TOKEN` | Yes (pipeline) | Long-lived OAuth token |
 | `ONENOTE_NOTEBOOK_ID` | Yes (pipeline) | Target notebook |
 | `DRY_RUN` | No | Set to `true` to skip writes |
+| `RENDER_STRATEGY` | No | Rendering strategy: `pdf-export` (default), `semi-auto`, or `inkml-raster` |
+| `SEMI_AUTO_DROP_DIR` | Conditional | Drop folder path; required when `RENDER_STRATEGY=semi-auto` |
+| `SEMI_AUTO_TIMEOUT_MS` | No | Max wait for drop-folder file in ms; `0` (default) = check once |
 
 For unit tests only, none of these are required — all external dependencies are mocked.
 
@@ -109,6 +112,14 @@ npx vitest run tests/unit/detect.test.ts tests/unit/hash.test.ts
 ```
 
 The suite verifies all four classification conditions (new, modified, retrying, skipped), confirms that all manifest reads are issued in a single `Promise.all` batch, and checks the log-line format. See [docs/pipeline-change-detection.md](pipeline-change-detection.md) for a full description of the test coverage.
+
+**Rendering unit tests** run entirely in memory — no environment variables, network access, or native add-ons required (sharp, pdfjs-dist, and canvas are all mocked):
+
+```bash
+npx vitest run tests/unit/render.test.ts
+```
+
+The suite covers `renderPage` orchestration (strategy chain, fallback, quality warnings), the PDF magic-byte detection path in `pdfExportStrategy`, the drop-folder lookup behaviour in `semiAutoStrategy`, the stub behaviour of `inkmlRasterStrategy`, and the `RenderError` class contract. See [docs/rendering-strategy.md](rendering-strategy.md) for the full design and configuration reference.
 
 ## Building and Linting
 
