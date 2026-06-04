@@ -56,6 +56,8 @@ All variables are documented in `.env.example`. The most important ones for loca
 | `RENDER_STRATEGY` | No | Rendering strategy: `pdf-export` (default), `semi-auto`, or `inkml-raster` |
 | `SEMI_AUTO_DROP_DIR` | Conditional | Drop folder path; required when `RENDER_STRATEGY=semi-auto` |
 | `SEMI_AUTO_TIMEOUT_MS` | No | Max wait for drop-folder file in ms; `0` (default) = check once |
+| `VISION_MODEL` | No | Vision model identifier (default: `claude-sonnet-4-6`) |
+| `LOG_LEVEL` | No | Log verbosity: `info` (default), `debug`, `warn`, `error` |
 
 For unit tests only, none of these are required — all external dependencies are mocked.
 
@@ -120,6 +122,21 @@ npx vitest run tests/unit/render.test.ts
 ```
 
 The suite covers `renderPage` orchestration (strategy chain, fallback, quality warnings), the PDF magic-byte detection path in `pdfExportStrategy`, the drop-folder lookup behaviour in `semiAutoStrategy`, the stub behaviour of `inkmlRasterStrategy`, and the `RenderError` class contract. See [docs/rendering-strategy.md](rendering-strategy.md) for the full design and configuration reference.
+
+**Vision conversion unit tests** run entirely in memory — no environment variables, network access, or API calls required (the Anthropic SDK and the parser are fully mocked):
+
+```bash
+# Parser: 26 tests — confidence, concepts, diagram JSON, uncertainty flags
+npx vitest run tests/unit/vision-parser.test.ts
+
+# VisionClient: 19 tests — SDK integration, retry behaviour, VisionError
+npx vitest run tests/unit/vision-client.test.ts
+
+# convertPage stage: 20 tests — ConvertedPage shape, logging, error propagation
+npx vitest run tests/unit/convert.test.ts
+```
+
+The parser test suite loads `tests/fixtures/sample-response.md` — a realistic model output for an Eulerian-graphs page — to verify end-to-end fixture parsing. The VisionClient tests mock `@anthropic-ai/sdk` via `vi.mock` so no credentials are needed. See [docs/vision-conversion.md](vision-conversion.md) for the full prompt design and parser specification.
 
 ## Building and Linting
 
