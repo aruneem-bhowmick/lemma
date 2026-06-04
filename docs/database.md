@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS pages (
   status         text        NOT NULL DEFAULT 'pending'
                              CHECK (status IN ('pending', 'processed', 'failed')),
   processed_at   timestamptz,
-  error_message  text,
+  error_message  text        CONSTRAINT pages_error_message_len_check
+                             CHECK (char_length(error_message) <= 2000),
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now()
 );
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS pages (
 | `markdown_path` | text | Yes | NULL | CWD-relative path to the output `.md` file — NULL until processed |
 | `status` | text | No | `'pending'` | `pending` \| `processed` \| `failed` |
 | `processed_at` | timestamptz | Yes | NULL | Timestamp of the last successful processing run |
-| `error_message` | text | Yes | NULL | Diagnostic message from the last failed run, truncated to 2000 chars |
+| `error_message` | text | Yes | NULL | Diagnostic message from the last failed run; enforced ≤ 2 000 chars by `pages_error_message_len_check`; cleared to NULL when a page is later successfully processed |
 | `created_at` | timestamptz | No | `now()` | Row insertion timestamp |
 | `updated_at` | timestamptz | No | `now()` | Updated automatically by a `BEFORE UPDATE` trigger |
 
@@ -150,7 +151,9 @@ console.log(`${failed.length} pages need attention`);
 
 ### `markProcessed(id, markdownPath, contentHash): Promise<void>`
 
-Sets a row's status to `'processed'` and records the output path, content hash, and `processed_at` timestamp.
+Sets a row's status to `'processed'`, records the output path, content hash, and `processed_at` timestamp, and clears `error_message` to NULL.
+
+Clearing `error_message` ensures that a page which previously failed and was then successfully retried shows a clean manifest row — no stale failure text lingers after the page is processed.
 
 Absolute `markdownPath` values are converted to `process.cwd()`-relative paths before storage so the manifest is portable across machines with different root directories.
 
@@ -201,7 +204,7 @@ The migration runner:
 
 1. Reads every `.sql` file from `src/db/migrations/` in alphabetical order.
 2. Executes all files inside a single transaction — a failure rolls back the entire set rather than leaving the schema partially applied.
-3. Logs each file name followed by `OK` or `ERROR` to stdout/stderr.
+3. Logs each file name followed by `OK` or `ERROR` to stdout/stderr.  On failure the full error stack trace is emitted to stderr before exit.
 4. Exits with code `0` on success and `1` on any error.
 
 ### Running migrations in CI
