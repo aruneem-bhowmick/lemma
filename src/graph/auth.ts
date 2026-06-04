@@ -13,8 +13,17 @@
  * docs/auth-setup.md for the one-time setup procedure.
  */
 
-/** Token endpoint for the Microsoft identity platform. */
-const TOKEN_ENDPOINT = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+/**
+ * Returns the Microsoft identity platform token endpoint URL.
+ *
+ * When `AZURE_TENANT_ID` is set the request is directed at that specific
+ * tenant, which is required for work/school accounts and supported for
+ * personal accounts.  Defaults to `common`, which accepts both account types.
+ */
+function buildTokenEndpoint(): string {
+  const tenantId = process.env.AZURE_TENANT_ID ?? 'common';
+  return `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+}
 
 /**
  * The delegated scopes required by the Lemma pipeline.
@@ -83,13 +92,20 @@ let tokenCache: CachedToken | null = null;
  * - `GRAPH_REFRESH_TOKEN` — the long-lived refresh token from the one-time
  *                           interactive consent flow (see docs/auth-setup.md).
  * - `AZURE_CLIENT_SECRET` — optional; included in the token request when set.
+ * - `AZURE_TENANT_ID`     — optional; overrides the default `common` tenant
+ *                           endpoint (required for work/school accounts).
  *
+ * @param forceRefresh - When `true`, bypass the in-process cache and always
+ *                       exchange the refresh token for a new access token.
+ *                       Used by `GraphClient` when retrying after a 401 so the
+ *                       same (rejected) token is never reused.
  * @returns An object containing the raw access token string and its expiry date.
- * @throws  AuthError if the environment variables are missing or the token
+ * @throws  AuthError if the environment variables are missing, the network
+ *          request fails, the response cannot be parsed, or the token
  *          endpoint returns an error response.
  */
-export async function acquireToken(): Promise<{ accessToken: string; expiresAt: Date }> {
-  if (tokenCache !== null && isTokenValid(tokenCache.expiresAt)) {
+export async function acquireToken(forceRefresh = false): Promise<{ accessToken: string; expiresAt: Date }> {
+  if (tokenCache !== null && isTokenValid(tokenCache.expiresAt) && !forceRefresh) {
     return { accessToken: tokenCache.accessToken, expiresAt: tokenCache.expiresAt };
   }
 
@@ -123,13 +139,29 @@ export async function acquireToken(): Promise<{ accessToken: string; expiresAt: 
     body.set('client_secret', clientSecret);
   }
 
-  const response = await fetch(TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildTokenEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+  } catch (err) {
+    throw new AuthError(
+      `Token endpoint request failed: ${(err as Error).message}`,
+      'network_error',
+    );
+  }
 
-  const data = (await response.json()) as Record<string, unknown>;
+  let data: Record<string, unknown>;
+  try {
+    data = (await response.json()) as Record<string, unknown>;
+  } catch {
+    throw new AuthError(
+      `Token endpoint returned an unparseable response (HTTP ${response.status})`,
+      'token_error',
+    );
+  }
 
   const errorCode = data['error'] as string | undefined;
   if (!response.ok || errorCode) {
@@ -139,9 +171,17 @@ export async function acquireToken(): Promise<{ accessToken: string; expiresAt: 
     throw new AuthError(description, errorCode ?? 'token_error');
   }
 
-  const expiresIn = (data['expires_in'] as number | undefined) ?? 3600;
+  const accessToken = data['access_token'];
+  if (typeof accessToken !== 'string' || !accessToken) {
+    throw new AuthError(
+      'Token endpoint response is missing a valid access_token field',
+      'token_error',
+    );
+  }
+
+  const rawExpiresIn = Number(data['expires_in'] ?? 3600);
+  const expiresIn = Number.isFinite(rawExpiresIn) && rawExpiresIn > 0 ? rawExpiresIn : 3600;
   const expiresAt = new Date(Date.now() + expiresIn * 1000);
-  const accessToken = data['access_token'] as string;
 
   tokenCache = { accessToken, expiresAt };
   return { accessToken, expiresAt };
