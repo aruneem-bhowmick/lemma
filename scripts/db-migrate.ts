@@ -66,7 +66,11 @@ try {
   console.log(`[migrate] All ${migrationFiles.length} migration(s) completed successfully.`);
   await closeDb();
   process.exit(0);
-} catch {
+} catch (err) {
+  console.error(
+    '[migrate] Migration failed:',
+    err instanceof Error ? err.stack : err,
+  );
   await closeDb().catch(() => undefined);
   process.exit(1);
 }
