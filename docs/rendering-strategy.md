@@ -38,7 +38,7 @@ export async function renderPage(page: PageMeta, graphClient: GraphClient): Prom
 
 `renderPage` delegates to one of three interchangeable strategy modules:
 
-```
+```text
 src/pipeline/render-strategies/
   pdf-export.ts    ← Strategy A: Graph API export + local rasterisation
   semi-auto.ts     ← Strategy B: local drop-folder PDF (primary for personal accounts)
@@ -57,7 +57,7 @@ The primary strategy is controlled by the `RENDER_STRATEGY` environment
 variable (default: `pdf-export`). If the primary strategy throws, `renderPage`
 logs a warning and tries the next strategy in the fixed fallback order:
 
-```
+```text
 pdf-export  →  semi-auto  →  inkml-raster
 ```
 
@@ -70,13 +70,13 @@ record a targeted per-page failure without aborting the entire run.
 
 Each fallback emits a `console.warn` line:
 
-```
+```text
 [render] pdf-export failed, falling back to semi-auto: <error message>
 ```
 
 A successful render emits a `console.log` line:
 
-```
+```text
 [render] page <id> rendered via <strategy> in <ms>ms (<bytes> bytes)
 ```
 
@@ -136,7 +136,7 @@ of whether the ink export endpoint is available.
 
 **Configuration:**
 
-```
+```bash
 RENDER_STRATEGY=semi-auto
 SEMI_AUTO_DROP_DIR=./drop
 SEMI_AUTO_TIMEOUT_MS=0    # 0 = check once; >0 = wait up to N ms
@@ -191,7 +191,7 @@ are applied:
 If the rendered image is narrower than 1 668 px (equivalent to iPad mini 6
 landscape resolution), `renderPage` logs a `console.warn`:
 
-```
+```text
 [render] WARNING: image for page <id> is only <N>px wide (minimum recommended: 1668px) — vision accuracy may be degraded.
 ```
 
@@ -202,7 +202,7 @@ causing a hard failure.
 
 If the JPEG buffer is smaller than 50 KB, `renderPage` logs:
 
-```
+```text
 [render] WARNING: rendered image for page <id> is suspiciously small (<N> bytes) — vision accuracy may be degraded.
 ```
 
