@@ -1,10 +1,10 @@
 /**
  * @fileoverview Scaffold structure and type-export validation tests.
  *
- * Verifies the Prompt 1 gate conditions:
+ * Verifies the Phase 1 scaffold gate conditions:
  *
- *  1. All five public interfaces from src/types.ts are importable at
- *     compile time and their module loads without error at runtime.
+ *  1. src/types.ts loads without error and each exported interface has the
+ *     expected shape (verified at the TypeScript type level with expectTypeOf).
  *
  *  2. The corpus/ and assets/ output directories exist and are git-tracked.
  *
@@ -14,10 +14,11 @@
  *     PipelineResult without throwing.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, expectTypeOf } from 'vitest';
 import { existsSync, readFileSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import type { PageMeta, ManifestEntry, DiagramData, ConvertedPage, PipelineResult } from '../../src/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,33 +30,48 @@ const ROOT = resolve(__dirname, '../../');
 
 describe('src/types.ts — interface exports', () => {
   /**
-   * Dynamic import is used so that a module-load failure surfaces as a test
-   * failure rather than an uncaught build error.  TypeScript interfaces are
-   * erased at runtime, so we verify the module itself loads cleanly.
+   * Verify the module itself loads cleanly at runtime.  TypeScript interfaces
+   * are erased, so this confirms there are no syntax or import errors in
+   * the module; the type assertions below verify the exported shapes.
    */
-  it('src/types.ts exports PageMeta', async () => {
-    const types = await import('../../src/types.js');
-    expect(types).toBeDefined();
+  it('module loads without error', async () => {
+    await import('../../src/types.js');
   });
 
-  it('src/types.ts exports ManifestEntry', async () => {
-    const types = await import('../../src/types.js');
-    expect(types).toBeDefined();
+  it('PageMeta has required fields', () => {
+    expectTypeOf<PageMeta>().toHaveProperty('id');
+    expectTypeOf<PageMeta>().toHaveProperty('title');
+    expectTypeOf<PageMeta>().toHaveProperty('section');
+    expectTypeOf<PageMeta>().toHaveProperty('lastModifiedDateTime');
   });
 
-  it('src/types.ts exports DiagramData', async () => {
-    const types = await import('../../src/types.js');
-    expect(types).toBeDefined();
+  it('ManifestEntry has required fields', () => {
+    expectTypeOf<ManifestEntry>().toHaveProperty('id');
+    expectTypeOf<ManifestEntry>().toHaveProperty('status');
+    expectTypeOf<ManifestEntry>().toHaveProperty('content_hash');
+    expectTypeOf<ManifestEntry>().toHaveProperty('markdown_path');
+    expectTypeOf<ManifestEntry>().toHaveProperty('processed_at');
   });
 
-  it('src/types.ts exports ConvertedPage', async () => {
-    const types = await import('../../src/types.js');
-    expect(types).toBeDefined();
+  it('DiagramData has required fields', () => {
+    expectTypeOf<DiagramData>().toHaveProperty('type');
+    expectTypeOf<DiagramData>().toHaveProperty('vertices');
+    expectTypeOf<DiagramData>().toHaveProperty('edges');
+    expectTypeOf<DiagramData>().toHaveProperty('caption');
   });
 
-  it('src/types.ts exports PipelineResult', async () => {
-    const types = await import('../../src/types.js');
-    expect(types).toBeDefined();
+  it('ConvertedPage has required fields', () => {
+    expectTypeOf<ConvertedPage>().toHaveProperty('pageId');
+    expectTypeOf<ConvertedPage>().toHaveProperty('markdown');
+    expectTypeOf<ConvertedPage>().toHaveProperty('diagrams');
+    expectTypeOf<ConvertedPage>().toHaveProperty('confidence');
+  });
+
+  it('PipelineResult has required fields', () => {
+    expectTypeOf<PipelineResult>().toHaveProperty('processed');
+    expectTypeOf<PipelineResult>().toHaveProperty('skipped');
+    expectTypeOf<PipelineResult>().toHaveProperty('failed');
+    expectTypeOf<PipelineResult>().toHaveProperty('errors');
   });
 });
 
