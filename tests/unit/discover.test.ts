@@ -211,4 +211,70 @@ describe('discoverPages', () => {
     const output = warnSpy.mock.calls.flat().join(' ');
     expect(output).toMatch(/Large notebook detected/);
   });
+
+  it('returns an empty array when the notebook has no pages', async () => {
+    mockListPages.mockResolvedValue([]);
+
+    const result = await discoverPages('notebook-empty');
+
+    expect(result).toHaveLength(0);
+    expect(mockUpsertPage).not.toHaveBeenCalled();
+  });
+
+  it('logs accurate new and existing counts in the summary line', async () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockListPages.mockResolvedValue([
+      makeGraphPage(1),
+      makeGraphPage(2),
+      makeGraphPage(3),
+    ]);
+    // Pages 1 and 3 are new; page 2 was already processed.
+    mockGetPage
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(makeManifestEntry('page-2', 'processed'))
+      .mockResolvedValueOnce(null);
+
+    await discoverPages('notebook-abc');
+
+    const output = consoleSpy.mock.calls.flat().join(' ');
+    expect(output).toMatch(/\[discover\] Found 3 pages \(2 new, 1 existing\)/);
+  });
+
+  it('maps GraphPage.parentSection.displayName to the section field of PageMeta', async () => {
+    const page = makeGraphPage(1);
+    page.parentSection = { id: 'sec-x', displayName: 'Advanced Topics' };
+    mockListPages.mockResolvedValue([page]);
+
+    const result = await discoverPages('notebook-abc');
+
+    expect(result[0].section).toBe('Advanced Topics');
+  });
+
+  it('calls upsertPage for every page, not just new ones', async () => {
+    // Mix of new and existing pages — upsert must be called for all.
+    mockListPages.mockResolvedValue([makeGraphPage(1), makeGraphPage(2)]);
+    mockGetPage
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(makeManifestEntry('page-2', 'processed'));
+
+    await discoverPages('notebook-abc');
+
+    expect(mockUpsertPage).toHaveBeenCalledTimes(2);
+  });
+
+  it('upsert arguments contain id, title, section, and last_modified', async () => {
+    mockListPages.mockResolvedValue([makeGraphPage(1)]);
+
+    await discoverPages('notebook-abc');
+
+    const arg = mockUpsertPage.mock.calls[0][0];
+    expect(arg).toMatchObject({
+      id: 'page-1',
+      title: 'Page 1',
+      section: 'Graph Theory',
+      last_modified: '2024-01-15T10:00:00.000Z',
+    });
+    // No extra fields beyond the four metadata columns.
+    expect(Object.keys(arg).sort()).toEqual(['id', 'last_modified', 'section', 'title'].sort());
+  });
 });
