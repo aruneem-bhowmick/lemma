@@ -87,9 +87,10 @@ After rasterisation, the pipeline enforces a minimum quality check:
   blank or corrupt and will degrade vision accuracy significantly.
   A `WARNING: rendered image is suspiciously small` log entry is emitted.
 
-Both thresholds are defined in `src/pipeline/render.ts` (stub at this stage;
-implemented in full by Prompt 6) and can be adjusted via environment variables
-in future iterations if needed.
+Both thresholds are planned for implementation in Prompt 6 — they are not yet
+present in the current `src/pipeline/render.ts` stub.  The values above document
+the intended behaviour so integrators know what to expect once the stub is
+replaced.
 
 ---
 

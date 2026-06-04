@@ -20,7 +20,7 @@ Optional for full pipeline execution:
 
 ```bash
 # 1. Install all dependencies
-npm install --strict-ssl=false
+npm install
 
 # 2. Copy the environment variable template
 cp .env.example .env
@@ -29,6 +29,16 @@ cp .env.example .env
 #    At minimum you need DATABASE_URL for integration tests
 #    and ANTHROPIC_API_KEY for vision conversion.
 ```
+
+> **TLS / proxy issues?** If your environment requires a custom CA certificate or
+> corporate proxy, configure npm separately rather than disabling SSL verification:
+> ```bash
+> npm config set cafile /path/to/your-ca-bundle.crt   # custom CA
+> npm config set proxy http://proxy.example.com:8080  # HTTP proxy
+> npm config set https-proxy http://proxy.example.com:8080
+> ```
+> See the [npm documentation](https://docs.npmjs.com/cli/v10/using-npm/config#cafile)
+> for the full list of network options.
 
 ## Environment Variables
 

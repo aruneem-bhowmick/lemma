@@ -110,10 +110,11 @@ With 100 changed pages per nightly run, claude-sonnet-4-6 costs approximately
 
 ## Pipeline Integration
 
-The chosen model is wired into the pipeline via `src/vision/client.ts` (`VisionClient`),
-configured by the `VISION_MODEL` environment variable (defaults to `claude-sonnet-4-6`).
-The system prompt that produced the spike results above is preserved verbatim in
-`src/vision/prompt.ts` (created in Prompt 7).
+The chosen model will be wired into the pipeline via `src/vision/client.ts` (`VisionClient`),
+configured by the `VISION_MODEL` environment variable (defaulting to `claude-sonnet-4-6`).
+`VisionClient` is currently a stub — it does not yet read `VISION_MODEL` or invoke any API.
+Full implementation (including env-var wiring and the system prompt from the spike) is
+planned as part of Prompt 7.
 
 See [Project Structure](project-structure.md) for the full module layout and
 [Development Setup](development.md) for how to run the pipeline with a real API key.
