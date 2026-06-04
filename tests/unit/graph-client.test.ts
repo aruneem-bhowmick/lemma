@@ -89,14 +89,19 @@ function binaryResponse(
 
 /**
  * Creates a mock Response for a rate-limit (429) reply with a Retry-After header.
+ *
+ * @param retryAfter - Delta-seconds number (e.g. `0`) or an arbitrary header
+ *                     string value (e.g. an HTTP-date or invalid text) used to
+ *                     exercise the header-parsing branch in GraphClient._get().
  */
-function rateLimitResponse(retryAfterSeconds = 0): object {
+function rateLimitResponse(retryAfter: number | string = 0): object {
+  const headerValue = typeof retryAfter === 'number' ? String(retryAfter) : retryAfter;
   return {
     ok: false,
     status: 429,
     headers: {
       get: (name: string) =>
-        name.toLowerCase() === 'retry-after' ? String(retryAfterSeconds) : null,
+        name.toLowerCase() === 'retry-after' ? headerValue : null,
     },
     json: vi.fn().mockResolvedValue({}),
     arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
@@ -256,6 +261,34 @@ describe('renderPageAsImage', () => {
       (err) => err instanceof GraphError && (err as GraphError).httpStatus === 429,
     );
   });
+
+  it('handles an HTTP-date Retry-After header without treating it as NaN', async () => {
+    // Use a date ~50 ms in the future so the computed positive delay is tiny
+    // but exercises the HTTP-date parsing branch rather than delta-seconds.
+    const httpDate = new Date(Date.now() + 50).toUTCString();
+    const mockFetch = vi.fn().mockResolvedValue(rateLimitResponse(httpDate));
+    vi.stubGlobal('fetch', mockFetch);
+
+    await expect(
+      client.renderPageAsImage('https://content.url/page-1', 'page-1'),
+    ).rejects.toSatisfy(
+      (err) => err instanceof GraphError && (err as GraphError).httpStatus === 429,
+    );
+  }, 10_000);
+
+  it('handles a malformed Retry-After header by falling back to the default delay', async () => {
+    // "not-a-date" is neither pure digits nor a parseable date, so
+    // DEFAULT_RETRY_AFTER_MS (1 s) is used per retry.  Extended timeout covers
+    // the three 1-second waits.
+    const mockFetch = vi.fn().mockResolvedValue(rateLimitResponse('not-a-date'));
+    vi.stubGlobal('fetch', mockFetch);
+
+    await expect(
+      client.renderPageAsImage('https://content.url/page-1', 'page-1'),
+    ).rejects.toSatisfy(
+      (err) => err instanceof GraphError && (err as GraphError).httpStatus === 429,
+    );
+  }, 10_000);
 });
 
 // ---------------------------------------------------------------------------
