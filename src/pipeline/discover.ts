@@ -62,6 +62,7 @@ function toPageMeta(gp: GraphPage): PageMeta {
     title: gp.title,
     section: gp.parentSection.displayName,
     lastModifiedDateTime: gp.lastModifiedDateTime,
+    contentUrl: gp.contentUrl,
   };
 }
 
