@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS pages (
   status         text        NOT NULL DEFAULT 'pending'
                              CHECK (status IN ('pending', 'processed', 'failed')),
   processed_at   timestamptz,
-  error_message  text,
+  error_message  text        CONSTRAINT pages_error_message_len_check
+                             CHECK (char_length(error_message) <= 2000),
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now()
 );
