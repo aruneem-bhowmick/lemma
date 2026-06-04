@@ -13,7 +13,7 @@ Step-by-step guide to getting a local development environment running for the Le
 
 Optional for full pipeline execution:
 - A Microsoft personal account with OneNote notebooks
-- An Azure AD app registration (see `docs-lemma/auth-setup.md`)
+- An Azure AD app registration (see [docs/auth-setup.md](auth-setup.md))
 - An Anthropic API key
 
 ## Initial Setup
@@ -77,11 +77,17 @@ npm run test:coverage
 TEST_DATABASE_URL=postgres://postgres@localhost/lemma_test npm test
 ```
 
-**Live Graph API tests** require `GRAPH_LIVE=true` and all `AZURE_*` / `GRAPH_REFRESH_TOKEN` values set:
+**Live Graph API tests** require `GRAPH_LIVE=true` plus `AZURE_CLIENT_ID`, `GRAPH_REFRESH_TOKEN`, and `ONENOTE_NOTEBOOK_ID`:
 
 ```bash
-GRAPH_LIVE=true npm test
+GRAPH_LIVE=true \
+AZURE_CLIENT_ID=... \
+GRAPH_REFRESH_TOKEN=... \
+ONENOTE_NOTEBOOK_ID=... \
+npm test
 ```
+
+These tests make real HTTP calls against the Microsoft identity platform and the Graph API.  They carry 15–60 second timeouts and should not be run in the normal CI loop.
 
 ## Building and Linting
 
@@ -92,6 +98,19 @@ npm run build
 # Lint src/, tests/, and scripts/
 npm run lint
 ```
+
+## Verifying Graph API credentials
+
+Before running the pipeline, confirm that your Azure credentials are valid:
+
+```bash
+npx ts-node scripts/auth-check.ts
+# exit 0 = credentials OK; exit 1 = auth failed (check the error message)
+```
+
+This script instantiates `GraphClient`, calls `healthCheck()`, and exits with the appropriate code.  Run it any time you update `GRAPH_REFRESH_TOKEN` or `AZURE_CLIENT_ID`.  It is also suitable as a CI pre-step before the main sync job.
+
+If it fails with `AuthError: invalid_grant`, your refresh token has expired.  Follow the re-consent procedure in [docs/auth-setup.md](auth-setup.md) to obtain a new one.
 
 ## Running the Pipeline
 
