@@ -17,7 +17,7 @@
  */
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { PageMeta } from '../../src/types.js';
@@ -503,6 +503,85 @@ describe('semiAutoStrategy (real implementation)', () => {
 
     expect(result).toBeInstanceOf(Buffer);
     expect(mockRasterizePdfBuffer).toHaveBeenCalledOnce();
+  });
+
+  it('rethrows non-ENOENT file-system errors without masking them as missing-file', async () => {
+    const page = makePageMeta('page-eisdir');
+    // Create a directory with the expected PDF filename. readFileSync on a
+    // directory throws EISDIR, not ENOENT, so the error must be rethrown.
+    mkdirSync(join(tmpDir, `${page.id}.pdf`));
+
+    const realModule = await vi.importActual<
+      typeof import('../../src/pipeline/render-strategies/semi-auto.js')
+    >('../../src/pipeline/render-strategies/semi-auto.js');
+
+    await expect(realModule.semiAutoStrategy(page)).rejects.toSatisfy(
+      (err: { code?: string }) => err.code !== undefined && err.code !== 'ENOENT',
+    );
+  });
+
+  it('warns and falls back to check-once mode when SEMI_AUTO_TIMEOUT_MS is non-numeric', async () => {
+    process.env.SEMI_AUTO_TIMEOUT_MS = 'not-a-number';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const page = makePageMeta('page-bad-timeout-nan');
+
+    const realModule = await vi.importActual<
+      typeof import('../../src/pipeline/render-strategies/semi-auto.js')
+    >('../../src/pipeline/render-strategies/semi-auto.js');
+
+    // The strategy should warn about the invalid value and proceed in check-once
+    // mode. Since no file is present, it will then throw the not-found error.
+    await expect(realModule.semiAutoStrategy(page)).rejects.toThrow(/page-bad-timeout-nan\.pdf/);
+
+    const output = warnSpy.mock.calls.flat().join(' ');
+    expect(output).toMatch(/SEMI_AUTO_TIMEOUT_MS.*not-a-number/);
+    expect(output).toMatch(/not.*valid/i);
+  });
+
+  it('warns and falls back to check-once mode when SEMI_AUTO_TIMEOUT_MS is negative', async () => {
+    process.env.SEMI_AUTO_TIMEOUT_MS = '-500';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const page = makePageMeta('page-bad-timeout-neg');
+
+    const realModule = await vi.importActual<
+      typeof import('../../src/pipeline/render-strategies/semi-auto.js')
+    >('../../src/pipeline/render-strategies/semi-auto.js');
+
+    await expect(realModule.semiAutoStrategy(page)).rejects.toThrow(/page-bad-timeout-neg\.pdf/);
+
+    const output = warnSpy.mock.calls.flat().join(' ');
+    expect(output).toMatch(/SEMI_AUTO_TIMEOUT_MS.*-500/);
+  });
+
+  it('warns and falls back to check-once mode when SEMI_AUTO_TIMEOUT_MS is a decimal', async () => {
+    process.env.SEMI_AUTO_TIMEOUT_MS = '1.5';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const page = makePageMeta('page-bad-timeout-dec');
+
+    const realModule = await vi.importActual<
+      typeof import('../../src/pipeline/render-strategies/semi-auto.js')
+    >('../../src/pipeline/render-strategies/semi-auto.js');
+
+    await expect(realModule.semiAutoStrategy(page)).rejects.toThrow(/page-bad-timeout-dec\.pdf/);
+
+    const output = warnSpy.mock.calls.flat().join(' ');
+    expect(output).toMatch(/SEMI_AUTO_TIMEOUT_MS.*1\.5/);
+  });
+
+  it('accepts a valid SEMI_AUTO_TIMEOUT_MS of 0 without warning', async () => {
+    process.env.SEMI_AUTO_TIMEOUT_MS = '0';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const page = makePageMeta('page-valid-timeout-zero');
+
+    const realModule = await vi.importActual<
+      typeof import('../../src/pipeline/render-strategies/semi-auto.js')
+    >('../../src/pipeline/render-strategies/semi-auto.js');
+
+    await expect(realModule.semiAutoStrategy(page)).rejects.toThrow(/page-valid-timeout-zero\.pdf/);
+
+    // No SEMI_AUTO_TIMEOUT_MS warning should be emitted for a valid value.
+    const output = warnSpy.mock.calls.flat().join(' ');
+    expect(output).not.toMatch(/SEMI_AUTO_TIMEOUT_MS/);
   });
 });
 
