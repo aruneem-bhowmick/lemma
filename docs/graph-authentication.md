@@ -29,23 +29,25 @@ docs/
 
 ## `src/graph/auth.ts`
 
-### `acquireToken()`
+### `acquireToken(forceRefresh?)`
 
 ```typescript
-export async function acquireToken(): Promise<{ accessToken: string; expiresAt: Date }>
+export async function acquireToken(forceRefresh?: boolean): Promise<{ accessToken: string; expiresAt: Date }>
 ```
 
 The function:
 
-1. Checks the module-level token cache.  If a cached token is present **and** has more than 60 seconds of remaining validity, it is returned immediately without a network round-trip.
-2. Otherwise, sends a `POST` to `https://login.microsoftonline.com/common/oauth2/v2.0/token` with:
+1. Checks the module-level token cache.  If a cached token is present **and** has more than 60 seconds of remaining validity **and** `forceRefresh` is not `true`, it is returned immediately without a network round-trip.
+2. Otherwise, sends a `POST` to the Microsoft identity platform token endpoint (URL is built from `AZURE_TENANT_ID`, defaulting to `common`) with:
    - `grant_type=refresh_token`
    - `client_id` from `AZURE_CLIENT_ID`
    - `refresh_token` from `GRAPH_REFRESH_TOKEN`
    - `scope=Notes.Read Notes.Read.All offline_access`
    - `client_secret` from `AZURE_CLIENT_SECRET` (included only when the variable is set)
-3. Stores the returned access token and computed `expiresAt` in the module-level cache.
-4. Returns `{ accessToken, expiresAt }`.
+3. Validates the response: the fetch itself, JSON parsing, and the presence of a non-empty `access_token` field are each guarded with try/catch; `expires_in` is coerced to a safe positive number (defaults to 3600 s).
+4. Stores the returned access token and computed `expiresAt` in the module-level cache, then returns `{ accessToken, expiresAt }`.
+
+The `forceRefresh` flag is set to `true` by `GraphClient._get()` when retrying after a 401 response, ensuring the stale rejected token is never reused from the cache.
 
 On error the function throws `AuthError` with the OAuth `error` code from the token endpoint response (e.g. `invalid_grant`, `AADSTS70011`).
 
@@ -74,7 +76,8 @@ Thrown when token acquisition fails.  The `code` field holds the OAuth error ide
 | `invalid_grant` | Refresh token expired or revoked — re-run the auth setup |
 | `missing_client_id` | `AZURE_CLIENT_ID` not set |
 | `missing_refresh_token` | `GRAPH_REFRESH_TOKEN` not set |
-| `token_error` | Generic token endpoint failure |
+| `network_error` | Token endpoint was unreachable (fetch threw) |
+| `token_error` | Generic token endpoint failure, parse error, or missing `access_token` |
 
 ---
 
@@ -87,8 +90,8 @@ All public methods call the private `_get()` helper, which:
 1. Calls `acquireToken()` to obtain the current token.
 2. Sets `Authorization: Bearer <token>` on the request.
 3. Logs `[GraphClient] GET <url> → <status> (<ms>ms)` to stderr.
-4. On **401**: re-acquires the token (forcing a cache miss) and retries the request once.  A second 401 throws `GraphError({ httpStatus: 401 })`.
-5. On **429**: reads the `Retry-After` header (falling back to 1 s if absent), waits, and retries up to three times.  After the third retry throws `GraphError({ httpStatus: 429 })`.
+4. On **401**: calls `acquireToken(true)` to force-bypass the cache (ensuring the rejected token is not reused), then retries the request once.  A second 401 throws `GraphError({ httpStatus: 401 })`.
+5. On **429**: reads the `Retry-After` header, waits, and retries up to three times.  After the third retry throws `GraphError({ httpStatus: 429 })`.  Both RFC 7231 `Retry-After` formats are supported: delta-seconds (e.g. `"120"`) and HTTP-date (e.g. `"Wed, 21 Oct 2015 07:28:00 GMT"`).  An absent or unparseable header falls back to a 1-second delay.
 
 #### `listPages(notebookId)`
 
@@ -134,7 +137,7 @@ Thrown by `GraphClient` methods on non-success HTTP responses.  The `httpStatus`
 | `AZURE_CLIENT_ID` | Yes | Azure AD application (client) ID |
 | `GRAPH_REFRESH_TOKEN` | Yes | Long-lived refresh token from interactive consent |
 | `AZURE_CLIENT_SECRET` | No | Client secret; included in token request when set |
-| `AZURE_TENANT_ID` | No | Tenant ID; defaults to `common` (personal accounts) |
+| `AZURE_TENANT_ID` | No | Tenant ID used in the token endpoint URL; defaults to `common` (personal accounts).  Set to a specific tenant GUID for work/school accounts. |
 
 See [docs/auth-setup.md](auth-setup.md) for the one-time procedure to obtain these values.
 
