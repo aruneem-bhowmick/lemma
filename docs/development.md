@@ -26,7 +26,7 @@ npm install
 cp .env.example .env
 
 # 3. Fill in the required values in .env
-#    At minimum you need DATABASE_URL for integration tests
+#    At minimum you need TEST_DATABASE_URL for integration tests
 #    and ANTHROPIC_API_KEY for vision conversion.
 ```
 
@@ -46,7 +46,8 @@ All variables are documented in `.env.example`. The most important ones for loca
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DATABASE_URL` | Yes (integration tests) | Postgres connection string |
+| `DATABASE_URL` | Yes (pipeline/migrations) | Postgres connection string for the pipeline and migration runner |
+| `TEST_DATABASE_URL` | Yes (integration tests) | Separate test database — never use the production URL here |
 | `ANTHROPIC_API_KEY` | Yes (pipeline) | Vision LLM access |
 | `AZURE_CLIENT_ID` | Yes (pipeline) | Graph API auth |
 | `GRAPH_REFRESH_TOKEN` | Yes (pipeline) | Long-lived OAuth token |
