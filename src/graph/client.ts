@@ -94,7 +94,9 @@ export class GraphClient {
     let rateLimitRetries = 0;
 
     const attempt = async (refreshToken: boolean): Promise<Response> => {
-      const { accessToken } = await acquireToken();
+      // When retrying after a 401 (refreshToken === false) force the cache to
+      // be bypassed so the stale token that was just rejected is not reused.
+      const { accessToken } = await acquireToken(!refreshToken);
       const start = Date.now();
 
       const response = await fetch(url, {
@@ -124,9 +126,20 @@ export class GraphClient {
         }
         rateLimitRetries += 1;
         const retryAfterHeader = response.headers.get('Retry-After');
-        const retryAfterMs = retryAfterHeader
-          ? parseInt(retryAfterHeader, 10) * 1000
-          : DEFAULT_RETRY_AFTER_MS;
+        let retryAfterMs = DEFAULT_RETRY_AFTER_MS;
+        if (retryAfterHeader !== null) {
+          if (/^\d+$/.test(retryAfterHeader.trim())) {
+            // Delta-seconds form: "120"
+            retryAfterMs = parseInt(retryAfterHeader.trim(), 10) * 1000;
+          } else {
+            // HTTP-date form: "Wed, 21 Oct 2015 07:28:00 GMT"
+            const parsedDate = Date.parse(retryAfterHeader);
+            if (!isNaN(parsedDate)) {
+              const ms = parsedDate - Date.now();
+              retryAfterMs = ms > 0 ? ms : DEFAULT_RETRY_AFTER_MS;
+            }
+          }
+        }
         await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
         return attempt(refreshToken);
       }
