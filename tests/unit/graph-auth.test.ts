@@ -49,7 +49,15 @@ function makeFetchMock(body: unknown, status = 200): ReturnType<typeof vi.fn> {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
+let originalAzureClientId: string | undefined;
+let originalGraphRefreshToken: string | undefined;
+let originalAzureClientSecret: string | undefined;
+
 beforeEach(() => {
+  originalAzureClientId = process.env.AZURE_CLIENT_ID;
+  originalGraphRefreshToken = process.env.GRAPH_REFRESH_TOKEN;
+  originalAzureClientSecret = process.env.AZURE_CLIENT_SECRET;
+
   _resetTokenCacheForTest();
   vi.unstubAllGlobals();
   process.env.AZURE_CLIENT_ID = 'test-client-id';
@@ -58,9 +66,21 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.AZURE_CLIENT_ID;
-  delete process.env.GRAPH_REFRESH_TOKEN;
-  delete process.env.AZURE_CLIENT_SECRET;
+  if (originalAzureClientId !== undefined) {
+    process.env.AZURE_CLIENT_ID = originalAzureClientId;
+  } else {
+    delete process.env.AZURE_CLIENT_ID;
+  }
+  if (originalGraphRefreshToken !== undefined) {
+    process.env.GRAPH_REFRESH_TOKEN = originalGraphRefreshToken;
+  } else {
+    delete process.env.GRAPH_REFRESH_TOKEN;
+  }
+  if (originalAzureClientSecret !== undefined) {
+    process.env.AZURE_CLIENT_SECRET = originalAzureClientSecret;
+  } else {
+    delete process.env.AZURE_CLIENT_SECRET;
+  }
   vi.unstubAllGlobals();
 });
 
