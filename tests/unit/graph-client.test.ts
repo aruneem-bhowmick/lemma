@@ -211,6 +211,22 @@ describe('renderPageAsImage', () => {
     expect(secondCallHeaders['Accept']).toBe('application/pdf');
   });
 
+  it('attempts PDF rasterization when fallback response Content-Type is application/pdf', async () => {
+    // The second fetch returns application/pdf — this triggers the _rasterizePdf path
+    // which will fail in the test environment (canvas not available or bad PDF bytes),
+    // surfacing a GraphError rather than a TypeError.
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(binaryResponse(new ArrayBuffer(0), 415))
+      .mockResolvedValueOnce(binaryResponse(new ArrayBuffer(32), 200, 'application/pdf'));
+
+    vi.stubGlobal('fetch', mockFetch);
+
+    await expect(
+      client.renderPageAsImage('https://content.url/page-1', 'page-1'),
+    ).rejects.toBeInstanceOf(GraphError);
+  });
+
   it('throws GraphError with renderingUnsupported when both JPEG and PDF requests fail', async () => {
     const mockFetch = vi
       .fn()
@@ -238,6 +254,18 @@ describe('renderPageAsImage', () => {
       client.renderPageAsImage('https://content.url/page-1', 'page-1'),
     ).rejects.toSatisfy(
       (err) => err instanceof GraphError && (err as GraphError).httpStatus === 429,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPageInkML
+// ---------------------------------------------------------------------------
+
+describe('getPageInkML', () => {
+  it('throws a not-implemented error', async () => {
+    await expect(client.getPageInkML('any-page-id')).rejects.toThrow(
+      /not yet implemented/i,
     );
   });
 });
