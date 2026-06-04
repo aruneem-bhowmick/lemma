@@ -36,6 +36,12 @@ export interface ManifestEntry {
   status: 'pending' | 'processed' | 'failed';
   /** ISO 8601 timestamp of the last successful processing run. Null if never processed. */
   processed_at: string | null;
+  /**
+   * Error message from the most recent failed processing attempt.
+   * Null for non-failed rows and for rows that have never been processed.
+   * Truncated to 2000 characters before storage.
+   */
+  error_message: string | null;
 }
 
 /** Structured adjacency representation of a hand-drawn graph diagram. */
