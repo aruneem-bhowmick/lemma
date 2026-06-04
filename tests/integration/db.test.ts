@@ -34,7 +34,6 @@ const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 describe.skipIf(!TEST_DATABASE_URL)('db integration — pages manifest', () => {
   // Lazy-import the real client so that the module is only loaded (and
   // DATABASE_URL validated) when the suite is actually going to run.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let db: postgres.Sql<Record<string, never>>;
   let closeDb: () => Promise<void>;
 
@@ -46,8 +45,13 @@ describe.skipIf(!TEST_DATABASE_URL)('db integration — pages manifest', () => {
   let getContentHash: typeof import('../../src/db/queries.js')['getContentHash'];
   let pruneDeletedPages: typeof import('../../src/db/queries.js')['pruneDeletedPages'];
 
+  // Preserve the original DATABASE_URL so other suites are not affected by
+  // the temporary override this suite needs to point the client at the test DB.
+  let originalDatabaseUrl: string | undefined;
+
   beforeAll(async () => {
-    // Point the client at the test database.
+    originalDatabaseUrl = process.env.DATABASE_URL;
+    // Override DATABASE_URL for the duration of this suite.
     process.env.DATABASE_URL = TEST_DATABASE_URL;
 
     const clientModule = await import('../../src/db/client.js');
@@ -73,6 +77,9 @@ describe.skipIf(!TEST_DATABASE_URL)('db integration — pages manifest', () => {
     // Leave the table but clear rows so repeated runs start clean.
     await db`TRUNCATE TABLE pages`;
     await closeDb();
+    // Restore DATABASE_URL so the original value is visible to any suites
+    // that run after this one in the same worker process.
+    process.env.DATABASE_URL = originalDatabaseUrl;
   });
 
   beforeEach(async () => {
@@ -149,12 +156,15 @@ describe.skipIf(!TEST_DATABASE_URL)('db integration — pages manifest', () => {
     expect(entry).toBeNull();
   });
 
-  it('getPage returns last_modified as an ISO 8601 string', async () => {
+  it('getPage returns last_modified as a valid ISO 8601 string', async () => {
     await upsertPage(BASE_ENTRY);
     const entry = await getPage(BASE_ENTRY.id);
-    // Should be a valid ISO date string regardless of postgres.js type transformation.
+    // Verify the value is a string and parses to a finite timestamp.
+    // new Date(...) never throws — checking .getTime() is the reliable way
+    // to detect an invalid date.
     expect(typeof entry?.last_modified).toBe('string');
-    expect(() => new Date(entry!.last_modified)).not.toThrow();
+    const ts = new Date(entry!.last_modified).getTime();
+    expect(Number.isFinite(ts)).toBe(true);
   });
 
   // ── markProcessed ─────────────────────────────────────────────────────────
