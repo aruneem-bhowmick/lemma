@@ -1,7 +1,7 @@
 /**
  * @fileoverview Scaffold structure and type-export validation tests.
  *
- * Verifies the Phase 1 scaffold gate conditions:
+ * Verifies the scaffold structure:
  *
  *  1. src/types.ts loads without error and each exported interface has the
  *     expected shape (verified at the TypeScript type level with expectTypeOf).

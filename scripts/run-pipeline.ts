@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 /**
- * CLI entry point for the Lemma Phase 1 ingestion pipeline.
+ * CLI entry point for the Lemma ingestion pipeline.
  *
  * Loads environment variables from .env, runs the full pipeline,
  * and exits with code 0 on success or 1 if any pages failed.

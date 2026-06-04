@@ -3,8 +3,6 @@
  *
  * Wraps the chosen vision model SDK (claude-sonnet-4-6 via @anthropic-ai/sdk
  * by default) and handles retries, logging, and cost estimation.
- *
- * Implemented in full by Prompt 7.
  */
 
 /**
@@ -33,6 +31,6 @@ export class VisionClient {
     void imageBase64;
     void pageTitle;
     void sectionName;
-    throw new Error('VisionClient.convert not yet implemented — see Prompt 7');
+    throw new Error('VisionClient.convert is not yet implemented');
   }
 }

@@ -1,11 +1,9 @@
 /**
- * Pipeline orchestrator — entry point for the Lemma Phase 1 ingestion run.
+ * Pipeline orchestrator — entry point for a Lemma ingestion run.
  *
  * Coordinates all five pipeline stages (discover → detect → render →
  * convert → write) with configurable concurrency, per-page failure
  * isolation, and a final summary report.
- *
- * Implemented in full by Prompt 11.
  */
 
 import type { PipelineResult } from '../types.js';
@@ -21,7 +19,7 @@ export interface RunPipelineOptions {
 }
 
 /**
- * Executes the full Phase 1 ingestion pipeline for one run.
+ * Executes a full ingestion pipeline run.
  *
  * Stages:
  *  1. Discover — list all pages from Graph API and seed the manifest.
@@ -52,7 +50,6 @@ export async function runPipeline(options?: RunPipelineOptions): Promise<Pipelin
     };
   }
 
-  // Full orchestration implemented by Prompt 11.
   void options;
   return { processed: 0, skipped: 0, failed: 0, errors: [] };
 }

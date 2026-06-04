@@ -4,8 +4,6 @@
  * Fetches a OneNote page from Microsoft Graph and returns a JPEG buffer
  * suitable for vision model processing, using a strategy-fallback chain
  * (pdf-export → semi-auto → inkml-raster).
- *
- * Implemented in full by Prompt 6.
  */
 
 import type { PageMeta } from '../types.js';
@@ -36,5 +34,5 @@ export interface RenderResult {
 export async function renderPage(page: PageMeta, graphClient: GraphClient): Promise<RenderResult> {
   void page;
   void graphClient;
-  throw new Error('renderPage not yet implemented — see Prompt 6');
+  throw new Error('renderPage is not yet implemented');
 }

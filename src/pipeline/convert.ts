@@ -4,8 +4,6 @@
  * Sends a rendered page image to the chosen vision LLM, parses the
  * structured response into a ConvertedPage object, and extracts all
  * diagram adjacency data and concept titles.
- *
- * Implemented in full by Prompts 7 and 8.
  */
 
 import type { PageMeta, ConvertedPage } from '../types.js';
@@ -25,5 +23,5 @@ export async function convertPage(
 ): Promise<ConvertedPage> {
   void renderResult;
   void page;
-  throw new Error('convertPage not yet implemented — see Prompts 7 and 8');
+  throw new Error('convertPage is not yet implemented');
 }

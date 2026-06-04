@@ -4,8 +4,6 @@
  * Composes the final Markdown file from frontmatter + validated body,
  * writes it to the corpus directory under a section-slug subdirectory,
  * and updates the manifest to 'processed'.
- *
- * Implemented in full by Prompt 10.
  */
 
 import { createHash } from 'crypto';
@@ -34,7 +32,7 @@ export interface WriteResult {
 export async function writePage(page: ConvertedPage, corpusDir: string): Promise<WriteResult> {
   void page;
   void corpusDir;
-  throw new Error('writePage not yet implemented — see Prompt 10');
+  throw new Error('writePage is not yet implemented');
 }
 
 /**
