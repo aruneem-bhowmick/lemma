@@ -1,11 +1,9 @@
 /**
- * Pipeline orchestrator — entry point for the Lemma Phase 1 ingestion run.
+ * Pipeline orchestrator — entry point for a Lemma ingestion run.
  *
  * Coordinates all five pipeline stages (discover → detect → render →
  * convert → write) with configurable concurrency, per-page failure
  * isolation, and a final summary report.
- *
- * Implemented in full by Prompt 11.
  */
 
 import type { PipelineResult } from '../types.js';
@@ -21,7 +19,7 @@ export interface RunPipelineOptions {
 }
 
 /**
- * Executes the full Phase 1 ingestion pipeline for one run.
+ * Executes a full ingestion pipeline run.
  *
  * Stages:
  *  1. Discover — list all pages from Graph API and seed the manifest.
@@ -29,6 +27,12 @@ export interface RunPipelineOptions {
  *  3. Render   — fetch and rasterize each page image (concurrent, capped).
  *  4. Convert  — call the vision LLM to produce structured Markdown.
  *  5. Write    — persist Markdown to corpus and update the manifest.
+ *
+ * Stage modules are loaded dynamically so that the database connection
+ * pool (which throws at import-time when DATABASE_URL is unset) is never
+ * initialised unless a valid notebookId is confirmed and the pipeline is
+ * actually ready to run. This keeps the orchestrator importable in
+ * environments — such as unit tests — where DATABASE_URL is absent.
  *
  * @param options - Optional overrides for notebook ID, dry-run mode, and concurrency.
  * @returns PipelineResult summary with counts and per-failure details.
@@ -52,7 +56,34 @@ export async function runPipeline(options?: RunPipelineOptions): Promise<Pipelin
     };
   }
 
-  // Full orchestration implemented by Prompt 11.
-  void options;
-  return { processed: 0, skipped: 0, failed: 0, errors: [] };
+  // Dynamic imports — only executed once notebookId is confirmed present.
+  const { discoverPages } = await import('./discover.js');
+  const { detectChanges } = await import('./detect.js');
+
+  // Stage 1 — Discover: retrieve the complete page list and seed the manifest.
+  // A GraphError here propagates to the caller; the pipeline cannot continue
+  // without a page list.
+  const allPages = await discoverPages(notebookId);
+
+  // Stage 2 — Detect: determine which pages require processing this run.
+  const pagesToProcess = await detectChanges(allPages);
+
+  if (pagesToProcess.length === 0) {
+    return {
+      processed: 0,
+      skipped: allPages.length,
+      failed: 0,
+      errors: [],
+    };
+  }
+
+  // Stages 3–5 (render → convert → write) are not yet implemented.
+  // Pages that reach this point will be processed once those stages
+  // are complete; for now the run reports them as pending work.
+  return {
+    processed: 0,
+    skipped: allPages.length - pagesToProcess.length,
+    failed: 0,
+    errors: [],
+  };
 }

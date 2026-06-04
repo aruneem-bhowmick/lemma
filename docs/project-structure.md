@@ -78,6 +78,8 @@ Key interfaces:
 
 Each file corresponds to exactly one pipeline stage. Stages receive typed inputs and return typed outputs; they do not share mutable state. The orchestrator (`index.ts`) is the only file that imports multiple stages.
 
+**`discover.ts`** implements `discoverPages(notebookId)`, the first pipeline stage. It calls `GraphClient.listPages()`, maps each `GraphPage` to a `PageMeta`, and upserts every page into the manifest using an `INSERT … ON CONFLICT` query. New pages are inserted with `status = 'pending'`; existing pages have only their title, section, and `last_modified` refreshed — processing state (`status`, `content_hash`, `markdown_path`) is never overwritten. Manifest reads and upserts are issued in bounded-concurrent chunks of 50 to avoid saturating the connection pool on large notebooks. See [docs/pipeline-discovery.md](pipeline-discovery.md) for the full design and configuration reference.
+
 ### `src/graph/`
 
 The Graph module is a thin HTTP wrapper around the Microsoft OneNote Graph API.  It contains three files:
@@ -88,7 +90,7 @@ The Graph module is a thin HTTP wrapper around the Microsoft OneNote Graph API. 
 
 **`types.ts`** contains the Graph API response interfaces (`GraphPage`, `GraphPageList`, `GraphSection`).
 
-No pipeline stage imports from `src/graph/` directly — `GraphClient` is instantiated by the pipeline orchestrator and passed as a parameter.
+`discoverPages` in `discover.ts` is an explicit exception to the general pattern: it directly imports `GraphClient` from `src/graph/client.ts` and instantiates it internally, because discovery is the stage that originates every pipeline run and has no upstream caller to inject a client. All other pipeline stages do not import `src/graph/` directly; they receive any Graph-derived data as typed function parameters from the orchestrator.
 
 ### `src/db/`
 

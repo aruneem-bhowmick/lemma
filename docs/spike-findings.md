@@ -17,7 +17,7 @@ well-structured Markdown, correct LaTeX, and machine-queryable graph
 adjacency data?**
 
 The spike was designed to fail fast if the answer was no — so that all
-downstream phases are built on proven, not assumed, foundations.
+downstream pipeline stages are built on proven, not assumed, foundations.
 
 The spike scripts live in `scripts/spike/` and can be re-run at any time:
 
@@ -47,7 +47,7 @@ retina-resolution PNG (~2338 × 3120 px for an iPad mini 6 in portrait).
 `render-test.ts` confirmed the image loads cleanly and exceeds the 1 668 px
 minimum width threshold.
 
-**This is the primary rendering strategy for Phase 1.**  The limitation —
+**This is the primary rendering strategy.**  The limitation —
 one manual export per section per sync — is acceptable given the daily-job
 requirement.  The pipeline's `semi-auto` render strategy automates the
 downstream processing once the PNG is dropped into the watched directory.
@@ -105,7 +105,7 @@ detectable at validation time and is therefore disqualifying.
 
 Omitted the `[!diagram]` callout entirely, describing the graph in prose
 instead of emitting structured adjacency JSON.  Extracting machine-queryable
-graph data from hand-drawn diagrams is a core Phase 1 requirement; a model
+graph data from hand-drawn diagrams is a core pipeline requirement; a model
 that cannot do it cannot serve as the primary conversion engine.
 
 ---
@@ -150,7 +150,7 @@ problematic in production.
 
 ## Related Documents
 
-- [Project Structure](project-structure.md) — full source layout established by the Phase 1 scaffold.
+- [Project Structure](project-structure.md) — full source layout and module roles.
 - [Development Setup](development.md) — how to run tests and the pipeline locally.
 - [Model Selection](model-selection.md) — detailed rationale for the `claude-sonnet-4-6` choice.
 - [Rendering Strategy](rendering-strategy.md) — strategy hierarchy and quality gates.

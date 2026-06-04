@@ -1,5 +1,5 @@
 /**
- * Shared TypeScript interfaces for the Lemma Phase 1 pipeline.
+ * Shared TypeScript interfaces for the Lemma ingestion pipeline.
  *
  * All pipeline stages (discover, detect, render, convert, write) and the
  * database layer import from this module to ensure type consistency across

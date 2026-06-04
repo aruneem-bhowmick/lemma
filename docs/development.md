@@ -89,6 +89,19 @@ npm test
 
 These tests make real HTTP calls against the Microsoft identity platform and the Graph API.  They carry 15–60 second timeouts and should not be run in the normal CI loop.
 
+**Discovery integration tests** exercise the full discovery flow — live Graph calls combined with real PostgreSQL upserts — and verify idempotency and status-preservation guarantees.  They require `DISCOVER_INTEGRATION=true` in addition to all Graph credentials and `TEST_DATABASE_URL`:
+
+```bash
+DISCOVER_INTEGRATION=true \
+AZURE_CLIENT_ID=... \
+GRAPH_REFRESH_TOKEN=... \
+ONENOTE_NOTEBOOK_ID=... \
+TEST_DATABASE_URL=postgres://postgres@localhost/lemma_test \
+npx vitest run tests/integration/discover-integration.test.ts
+```
+
+See [docs/pipeline-discovery.md](pipeline-discovery.md) for the full list of assertions these tests make.
+
 ## Building and Linting
 
 ```bash

@@ -5,8 +5,6 @@
  * only the subset that needs processing: new pages, pages whose
  * lastModifiedDateTime has changed, pending pages from interrupted runs,
  * and failed pages queued for retry.
- *
- * Implemented in full by Prompt 5.
  */
 
 import type { PageMeta } from '../types.js';

@@ -125,7 +125,7 @@ Gemini correctly transcribed the prose and LaTeX but failed to extract the hand-
 graph as a `[!diagram]` callout or emit adjacency JSON. Instead it described the graph
 in a paragraph: "The diagram shows a four-vertex graph with edges forming a square and
 one additional diagonal edge." This is human-readable but not machine-queryable — a
-core requirement for the diagram-as-data feature of Phase 1. Gemini also produced the
+core requirement for the diagram-as-data feature of this pipeline. Gemini also produced the
 highest latency of the three models.
 
 ---
