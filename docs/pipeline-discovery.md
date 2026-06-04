@@ -43,7 +43,7 @@ The `DO UPDATE` clause deliberately omits `status`, `content_hash`, `markdown_pa
 - **New pages** are inserted with `status = 'pending'`.
 - **Existing pages** have their metadata refreshed (catching title or section renames) without any change to pipeline state.
 
-All manifest reads (for counting new vs. existing) and all upserts run in parallel via `Promise.all` to minimise latency on large notebooks.
+All manifest reads (for counting new vs. existing) and all upserts are issued concurrently, but in bounded chunks of 50 pages at a time. This keeps throughput high while preventing hundreds of unresolved promises from accumulating against the five-connection pool on large notebooks.
 
 ### 4. Count and Log
 

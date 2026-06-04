@@ -17,6 +17,40 @@ import type { GraphPage } from '../graph/types.js';
 const LARGE_NOTEBOOK_THRESHOLD = 500;
 
 /**
+ * Maximum number of concurrent database calls issued at once.
+ *
+ * The postgres.js pool has max:5 connections. Firing hundreds of
+ * concurrent promises into it does not saturate the DB server (the
+ * pool queues extras), but it creates a large number of pending JS
+ * promises and makes memory usage unpredictable for very large
+ * notebooks. Processing pages in chunks of this size keeps the
+ * in-flight count bounded without sacrificing throughput.
+ */
+const DB_CONCURRENCY_LIMIT = 50;
+
+/**
+ * Runs `fn` over every item in `items`, processing at most
+ * `chunkSize` items concurrently. Results are returned in input order.
+ *
+ * @param items - Array of inputs to process.
+ * @param chunkSize - Maximum number of concurrent `fn` calls.
+ * @param fn - Async function applied to each item.
+ * @returns Resolved values in the same order as `items`.
+ */
+async function runInChunks<T, R>(
+  items: T[],
+  chunkSize: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    results.push(...(await Promise.all(chunk.map(fn))));
+  }
+  return results;
+}
+
+/**
  * Maps a raw Microsoft Graph API page object to the pipeline's PageMeta format.
  *
  * @param gp - Raw GraphPage as returned by the Graph API.
@@ -75,23 +109,24 @@ export async function discoverPages(notebookId: string): Promise<PageMeta[]> {
 
   const pages: PageMeta[] = graphPages.map(toPageMeta);
 
-  // Read existing manifest entries in parallel. This is used only to produce
-  // the new-vs-existing count for the log summary; the upsert is unconditional
-  // because the SQL ON CONFLICT clause preserves status for existing rows.
-  const existingEntries = await Promise.all(pages.map((p) => getPage(p.id)));
+  // Read existing manifest entries in bounded-concurrent chunks. Results are
+  // used only to produce the new-vs-existing count for the log summary; the
+  // upsert below is unconditional because the SQL ON CONFLICT clause is the
+  // authoritative guard for status preservation.
+  const existingEntries = await runInChunks(pages, DB_CONCURRENCY_LIMIT, (p) =>
+    getPage(p.id),
+  );
 
-  // Upsert every page in parallel.
+  // Upsert every page in bounded-concurrent chunks.
   // - New pages  → INSERT with status = 'pending' (baked into the SQL).
   // - Existing   → UPDATE title, section, last_modified only; status untouched.
-  await Promise.all(
-    pages.map((page) =>
-      upsertPage({
-        id: page.id,
-        title: page.title,
-        section: page.section,
-        last_modified: page.lastModifiedDateTime,
-      }),
-    ),
+  await runInChunks(pages, DB_CONCURRENCY_LIMIT, (page) =>
+    upsertPage({
+      id: page.id,
+      title: page.title,
+      section: page.section,
+      last_modified: page.lastModifiedDateTime,
+    }),
   );
 
   const newCount = existingEntries.filter((e) => e === null).length;
