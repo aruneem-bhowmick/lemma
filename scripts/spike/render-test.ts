@@ -174,8 +174,11 @@ async function main(): Promise<void> {
   console.log(`[render-test] File size: ${pngBuffer.length.toLocaleString()} bytes`);
 }
 
-// Only run main() when executed directly (not when imported by tests)
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Only run main() when executed directly (not when imported by tests).
+// Resolve argv[1] against cwd so relative invocations produce the same
+// absolute path as fileURLToPath(import.meta.url).
+const _argv1 = process.argv[1];
+if (_argv1 !== undefined && resolve(process.cwd(), _argv1) === fileURLToPath(import.meta.url)) {
   main().catch((err: unknown) => {
     console.error('[render-test] Fatal error:', err instanceof Error ? err.message : err);
     process.exit(1);

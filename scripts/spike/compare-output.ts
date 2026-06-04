@@ -18,7 +18,7 @@
  */
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { distance } from 'fastest-levenshtein';
 
@@ -245,7 +245,10 @@ function main(): void {
   }
 }
 
-// Only run main() when executed directly (not when imported by tests)
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Only run main() when executed directly (not when imported by tests).
+// Resolve argv[1] against cwd so relative invocations (e.g. `ts-node ./scripts/spike/compare-output.ts`)
+// produce the same absolute path as fileURLToPath(import.meta.url).
+const _argv1 = process.argv[1];
+if (_argv1 !== undefined && resolve(process.cwd(), _argv1) === fileURLToPath(import.meta.url)) {
   main();
 }

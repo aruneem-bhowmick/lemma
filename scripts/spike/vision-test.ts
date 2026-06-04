@@ -20,7 +20,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -350,8 +350,11 @@ async function main(): Promise<void> {
   console.log(`[vision-test] Done — ${successCount} model(s) ran successfully.`);
 }
 
-// Only run main() when executed directly (not when imported by tests)
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Only run main() when executed directly (not when imported by tests).
+// Resolve argv[1] against cwd so relative invocations produce the same
+// absolute path as fileURLToPath(import.meta.url).
+const _argv1 = process.argv[1];
+if (_argv1 !== undefined && resolve(process.cwd(), _argv1) === fileURLToPath(import.meta.url)) {
   main().catch((err: unknown) => {
     console.error('[vision-test] Fatal error:', err instanceof Error ? err.message : err);
     process.exit(1);
