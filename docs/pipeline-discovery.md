@@ -49,7 +49,7 @@ All manifest reads (for counting new vs. existing) and all upserts run in parall
 
 Manifest reads run in parallel before the upserts to classify each page as new or existing. After upserting, a single summary line is emitted:
 
-```
+```text
 [discover] Found 42 pages (3 new, 39 existing)
 ```
 
@@ -57,7 +57,7 @@ Manifest reads run in parallel before the upserts to classify each page as new o
 
 If the Graph API returns more than 500 pages, a `console.warn` advisory is emitted:
 
-```
+```text
 [discover] Large notebook detected (>500 pages); consider section-scoped sync.
 ```
 
@@ -159,7 +159,7 @@ The integration suite is skipped unless `DISCOVER_INTEGRATION=true` and all requ
 
 ## Relationship to Other Pipeline Stages
 
-```
+```text
 discoverPages  →  detectChanges  →  renderPage  →  convertPage  →  writePage
      ↕                  ↑
   pages table ──────────┘
