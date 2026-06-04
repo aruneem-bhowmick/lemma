@@ -127,6 +127,9 @@ export async function getPagesByStatus(
  * Marks a page as successfully processed, recording its output path and
  * content hash.
  *
+ * Also clears any `error_message` left by a previous failed attempt so
+ * that a successfully retried page does not show stale failure information.
+ *
  * Absolute paths are converted to paths relative to `process.cwd()` before
  * storage so that the manifest remains valid across machines with different
  * root directories.
@@ -149,7 +152,8 @@ export async function markProcessed(
     SET    status        = 'processed',
            markdown_path = ${storedPath},
            content_hash  = ${contentHash},
-           processed_at  = NOW()
+           processed_at  = NOW(),
+           error_message = NULL
     WHERE  id = ${id}
   `;
 }

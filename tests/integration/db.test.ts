@@ -169,6 +169,19 @@ describe.skipIf(!TEST_DATABASE_URL)('db integration — pages manifest', () => {
     expect(entry?.processed_at).not.toBeNull();
   });
 
+  it('markProcessed clears a stale error_message from a prior failure', async () => {
+    await upsertPage(BASE_ENTRY);
+    await markFailed(BASE_ENTRY.id, 'Transient render error');
+    // Confirm the error was recorded.
+    const failed = await getPage(BASE_ENTRY.id);
+    expect(failed?.error_message).toBe('Transient render error');
+    // Now successfully process the page — error_message must be cleared.
+    await markProcessed(BASE_ENTRY.id, 'graph-theory/integ-page-001.md', 'sha256:retry');
+    const processed = await getPage(BASE_ENTRY.id);
+    expect(processed?.status).toBe('processed');
+    expect(processed?.error_message).toBeNull();
+  });
+
   // ── markFailed ────────────────────────────────────────────────────────────
 
   it('markFailed sets status to failed and stores the error message', async () => {

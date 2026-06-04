@@ -218,6 +218,11 @@ describe('markProcessed', () => {
     await markProcessed('page-1', 'path.md', 'sha256:hash');
     expect(capturedSql()).toContain('processed_at  = NOW()');
   });
+
+  it('SQL skeleton sets error_message = NULL to clear stale failure data', async () => {
+    await markProcessed('page-1', 'path.md', 'sha256:hash');
+    expect(capturedSql()).toContain('error_message = NULL');
+  });
 });
 
 // ---------------------------------------------------------------------------
