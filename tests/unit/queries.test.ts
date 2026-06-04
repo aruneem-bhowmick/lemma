@@ -302,10 +302,10 @@ describe('pruneDeletedPages', () => {
     expect(deleted).toBe(5);
   });
 
-  it('calls db.array() when currentIds is non-empty', async () => {
+  it('calls db.array() with the currentIds array when non-empty', async () => {
     mockDb.mockResolvedValueOnce([{ count: 2 }]);
     await pruneDeletedPages(['id1', 'id2', 'id3']);
     const arrayHelper = (mockDb as unknown as { array: ReturnType<typeof vi.fn> }).array;
-    expect(arrayHelper).toHaveBeenCalledWith(['id1', 'id2', 'id3'], 'text');
+    expect(arrayHelper).toHaveBeenCalledWith(['id1', 'id2', 'id3']);
   });
 });

@@ -22,6 +22,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import type postgres from 'postgres';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,7 +34,8 @@ const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
 describe.skipIf(!TEST_DATABASE_URL)('db integration — pages manifest', () => {
   // Lazy-import the real client so that the module is only loaded (and
   // DATABASE_URL validated) when the suite is actually going to run.
-  let db: Awaited<ReturnType<typeof import('../../src/db/client.js')>>['db'];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let db: postgres.Sql<Record<string, never>>;
   let closeDb: () => Promise<void>;
 
   let upsertPage: typeof import('../../src/db/queries.js')['upsertPage'];

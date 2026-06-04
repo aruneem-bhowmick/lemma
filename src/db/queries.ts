@@ -120,7 +120,7 @@ export async function getPagesByStatus(
     FROM   pages
     WHERE  status = ${status}
   `;
-  return (rows as PageRow[]).map(rowToManifestEntry);
+  return (rows as unknown as PageRow[]).map(rowToManifestEntry);
 }
 
 /**
@@ -216,7 +216,7 @@ export async function pruneDeletedPages(currentIds: string[]): Promise<number> {
   const rows = await db`
     WITH deleted AS (
       DELETE FROM pages
-      WHERE NOT (id = ANY(${db.array(currentIds, 'text')}))
+      WHERE NOT (id = ANY(${db.array(currentIds)}))
       RETURNING id
     )
     SELECT count(*)::int AS count FROM deleted
