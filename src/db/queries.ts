@@ -11,14 +11,21 @@
 import type { ManifestEntry } from '../types.js';
 
 /**
+ * The subset of ManifestEntry fields supplied by the Graph API discover stage.
+ *
+ * DB-owned fields (status, content_hash, markdown_path, processed_at) are
+ * intentionally excluded — they are set by later pipeline stages, not at
+ * discovery time.
+ */
+type SourcePageMeta = Pick<ManifestEntry, 'id' | 'title' | 'section' | 'last_modified'>;
+
+/**
  * Inserts a new page entry or updates an existing one's title, section, and
  * last_modified without touching status, content_hash, markdown_path, or processed_at.
  *
- * @param entry - Page metadata from the Graph API (all ManifestEntry fields except processed_at).
+ * @param entry - Source metadata from the Graph API (id, title, section, last_modified only).
  */
-export async function upsertPage(
-  entry: Omit<ManifestEntry, 'processed_at'>,
-): Promise<void> {
+export async function upsertPage(entry: SourcePageMeta): Promise<void> {
   void entry;
   throw new Error('upsertPage not yet implemented — see Prompt 2');
 }
@@ -30,8 +37,7 @@ export async function upsertPage(
  * @returns The ManifestEntry row, or null if no row exists for this id.
  */
 export async function getPage(id: string): Promise<ManifestEntry | null> {
-  void id;
-  return null;
+  throw new Error(`getPage not yet implemented — see Prompt 2 (id: ${id})`);
 }
 
 /**
@@ -43,16 +49,19 @@ export async function getPage(id: string): Promise<ManifestEntry | null> {
 export async function getPagesByStatus(
   status: ManifestEntry['status'],
 ): Promise<ManifestEntry[]> {
-  void status;
-  return [];
+  throw new Error(`getPagesByStatus not yet implemented — see Prompt 2 (status: ${status})`);
 }
 
 /**
  * Marks a page as successfully processed, recording its output path and content hash.
  *
- * @param id - OneNote page identifier.
- * @param markdownPath - Absolute path to the written Markdown file.
- * @param contentHash - SHA-256 hash of the rendered image, prefixed with 'sha256:'.
+ * @param id           - OneNote page identifier.
+ * @param markdownPath - Relative path to the written Markdown file (relative to the
+ *                       corpus root, e.g. "graph-theory/abc123.md").  The
+ *                       implementation must store a relative path so the manifest
+ *                       is portable across machines; convert any absolute path
+ *                       with path.relative before persisting.
+ * @param contentHash  - SHA-256 hash of the rendered image, prefixed with 'sha256:'.
  */
 export async function markProcessed(
   id: string,
@@ -70,7 +79,7 @@ export async function markProcessed(
  *
  * The error message is truncated to 2000 characters before storage.
  *
- * @param id - OneNote page identifier.
+ * @param id           - OneNote page identifier.
  * @param errorMessage - Human-readable description of the failure.
  */
 export async function markFailed(id: string, errorMessage: string): Promise<void> {
@@ -86,8 +95,7 @@ export async function markFailed(id: string, errorMessage: string): Promise<void
  * @returns SHA-256 hash string prefixed with 'sha256:', or null.
  */
 export async function getContentHash(id: string): Promise<string | null> {
-  void id;
-  return null;
+  throw new Error(`getContentHash not yet implemented — see Prompt 2 (id: ${id})`);
 }
 
 /**
@@ -97,6 +105,7 @@ export async function getContentHash(id: string): Promise<string | null> {
  * @returns The number of rows deleted.
  */
 export async function pruneDeletedPages(currentIds: string[]): Promise<number> {
-  void currentIds;
-  return 0;
+  throw new Error(
+    `pruneDeletedPages not yet implemented — see Prompt 2 (${currentIds.length} current ids)`,
+  );
 }
