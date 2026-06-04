@@ -14,7 +14,7 @@ Personal Microsoft accounts do not support the client-credentials grant (the flo
 
 ## Module layout
 
-```
+```text
 src/graph/
   auth.ts      ← token acquisition, cache, AuthError
   client.ts    ← GraphClient (uses auth.ts internally)
@@ -94,7 +94,7 @@ All public methods call the private `_get()` helper, which:
 
 Retrieves all pages in the target notebook by querying:
 
-```
+```http
 GET /me/onenote/pages
     ?$expand=parentSection
     &$top=100

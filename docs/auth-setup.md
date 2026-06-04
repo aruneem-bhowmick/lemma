@@ -64,7 +64,7 @@ Copy the `refresh_token` value.
 
 In your `.env` at the project root:
 
-```
+```dotenv
 AZURE_CLIENT_ID=<application-client-id>
 AZURE_CLIENT_SECRET=<client-secret-value>
 GRAPH_REFRESH_TOKEN=<refresh-token>
