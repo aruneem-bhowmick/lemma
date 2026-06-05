@@ -27,6 +27,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import type { TextBlock } from '@anthropic-ai/sdk/resources';
 import { SYSTEM_PROMPT, USER_PROMPT_TEMPLATE } from './prompt.js';
 
 // ---------------------------------------------------------------------------
@@ -212,7 +213,7 @@ export class VisionClient {
         );
 
         const textBlock = response.content.find(
-          (b): b is { type: 'text'; text: string } => b.type === 'text',
+          (b): b is TextBlock => b.type === 'text',
         );
         if (!textBlock) {
           throw new VisionError(
