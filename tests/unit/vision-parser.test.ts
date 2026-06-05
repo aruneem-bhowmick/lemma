@@ -240,6 +240,46 @@ describe('parseVisionResponse — diagrams', () => {
     const result = parseVisionResponse(input);
     expect(result.diagrams).toHaveLength(2);
   });
+
+  it('skips and warns when diagram JSON has an invalid type value', () => {
+    const input =
+      '> [!diagram] Bad Type\n' +
+      '> ![fig](./assets/<asset-placeholder>.png)\n' +
+      '> ```json\n' +
+      '> { "type": "hypergraph", "vertices": ["A"], "edges": [], "caption": "Bad" }\n' +
+      '> ```\n' +
+      '<!-- confidence: medium -->';
+
+    const result = parseVisionResponse(input);
+    expect(result.diagrams).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/invalid schema.*type/i));
+  });
+
+  it('skips and warns when diagram JSON has malformed edges', () => {
+    const input =
+      '> [!diagram] Bad Edges\n' +
+      '> ![fig](./assets/<asset-placeholder>.png)\n' +
+      '> ```json\n' +
+      '> { "type": "undirected", "vertices": ["A", "B"], "edges": "not-an-array", "caption": "Bad" }\n' +
+      '> ```\n' +
+      '<!-- confidence: medium -->';
+
+    const result = parseVisionResponse(input);
+    expect(result.diagrams).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/invalid schema.*edges/i));
+  });
+
+  it('skips and warns on an unterminated JSON fence at end of input', () => {
+    const input =
+      '> [!diagram] Unterminated\n' +
+      '> ![fig](./assets/<asset-placeholder>.png)\n' +
+      '> ```json\n' +
+      '> { "type": "undirected", "vertices": ["A"],\n';
+
+    const result = parseVisionResponse(input);
+    expect(result.diagrams).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/unterminated/i));
+  });
 });
 
 // ---------------------------------------------------------------------------
