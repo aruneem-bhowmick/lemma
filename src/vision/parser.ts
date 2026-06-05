@@ -165,6 +165,38 @@ function extractDiagrams(raw: string, warnings: string[]): DiagramData[] {
       return;
     }
 
+    const p = parsed as Record<string, unknown>;
+
+    const VALID_TYPES = ['undirected', 'directed', 'weighted'];
+    if (!VALID_TYPES.includes(p.type as string)) {
+      warnings.push(
+        `[parser] [!diagram] JSON block has invalid schema: "type" must be one of ` +
+          `${VALID_TYPES.join(', ')} (got ${String(p.type)})`,
+      );
+      return;
+    }
+
+    if (!Array.isArray(p.vertices) || !(p.vertices as unknown[]).every((v) => typeof v === 'string')) {
+      warnings.push(
+        '[parser] [!diagram] JSON block has invalid schema: "vertices" must be a string[]',
+      );
+      return;
+    }
+
+    const isValidEdge = (e: unknown): boolean =>
+      Array.isArray(e) &&
+      e.length >= 2 &&
+      typeof e[0] === 'string' &&
+      typeof e[1] === 'string' &&
+      (e.length === 2 || typeof e[2] === 'number');
+
+    if (!Array.isArray(p.edges) || !(p.edges as unknown[]).every(isValidEdge)) {
+      warnings.push(
+        '[parser] [!diagram] JSON block has invalid schema: "edges" must be [string, string] or [string, string, number] pairs',
+      );
+      return;
+    }
+
     diagrams.push(parsed as DiagramData);
   };
 
@@ -212,8 +244,16 @@ function extractDiagrams(raw: string, warnings: string[]): DiagramData[] {
     }
   }
 
-  // Flush any unterminated JSON block at end of input.
-  flushJsonBlock();
+  // At end of input: an open JSON fence is malformed — warn and skip.
+  if (inJsonBlock) {
+    const snippet = jsonLines.slice(0, 3).join('\\n');
+    warnings.push(
+      `[parser] unterminated JSON fence in [!diagram] callout at end of input ` +
+        `(${jsonLines.length} lines buffered): ${snippet}`,
+    );
+  }
+  // If not in a JSON block, all properly-closed fences were already flushed
+  // when their closing ``` line was processed; nothing more to do.
 
   return diagrams;
 }
