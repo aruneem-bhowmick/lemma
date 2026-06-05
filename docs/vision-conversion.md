@@ -119,8 +119,9 @@ The prompt instructs the model to:
 
 **File:** `src/vision/client.ts`
 
-`VisionClient` wraps the Anthropic SDK. One instance is created per pipeline
-run (in `convertPage`).
+`VisionClient` wraps the Anthropic SDK. A single instance should be created per
+pipeline run and passed to each `convertPage` call so the Anthropic SDK connection
+is reused across pages (see [convertPage Pipeline Stage](#convertpage-pipeline-stage)).
 
 ### Configuration
 
@@ -151,6 +152,17 @@ thrown immediately.
 | 4 (retry 3) | If attempt 3 returned a retryable error |
 
 After the fourth failed attempt, a `VisionError` is thrown.
+
+Before each retry the client waits for a bounded exponential backoff with
+±50 % random jitter: `delay = min(10 000 ms, 500 ms × 2^attempt)`. This
+prevents hot-loop retries under sustained rate-limiting while keeping the
+first retry fast.
+
+### Response parsing
+
+`VisionClient.convert()` scans `response.content` for the first block with
+`type === 'text'` rather than assuming position 0 is always a text block.
+If no text block is found a `VisionError` is thrown immediately.
 
 ### VisionError
 
@@ -217,7 +229,14 @@ callout blocks. Within each such block, it collects lines between
 `` ```json `` and `` ``` ``, strips the leading `> ` prefix from each line,
 and attempts `JSON.parse`.
 
-A valid diagram JSON block must contain `type`, `vertices`, and `edges` keys:
+A valid diagram JSON block must pass full schema validation:
+
+| Field | Required type |
+|-------|--------------|
+| `type` | `"undirected"` \| `"directed"` \| `"weighted"` |
+| `vertices` | `string[]` |
+| `edges` | `Array<[string, string] \| [string, string, number]>` |
+| `caption` | `string` |
 
 ```json
 {
@@ -228,9 +247,12 @@ A valid diagram JSON block must contain `type`, `vertices`, and `edges` keys:
 }
 ```
 
-Malformed JSON or blocks missing required fields log a warning to
-`console.warn` and are skipped without throwing. This means a single
-broken diagram block does not abort processing of the entire page.
+Malformed JSON, blocks missing required fields, invalid `type` values,
+malformed `vertices`, or malformed `edges` each log a descriptive warning to
+`console.warn` and are skipped without throwing. An unterminated JSON fence
+(no closing `` ``` `` before end of input) is also warned and discarded — the
+partial buffer is never parsed. A single broken diagram block does not abort
+processing of the entire page.
 
 ### Confidence default
 
@@ -243,12 +265,16 @@ When the confidence comment is absent or its level is not one of
 
 **File:** `src/pipeline/convert.ts`
 
-`convertPage(renderResult, page)` orchestrates the three modules above:
+`convertPage(renderResult, page, client?)` orchestrates the three modules above:
 
 1. Base64-encodes `renderResult.imageBuffer`.
-2. Calls `new VisionClient().convert(base64, page.title, page.section)`.
+2. Calls `client.convert(base64, page.title, page.section)` using the provided
+   `VisionClient` (or a newly constructed one if omitted).
 3. Calls `parseVisionResponse(rawResponse)`.
 4. Constructs and returns a `ConvertedPage`.
+
+Callers that process multiple pages should create a single `VisionClient` and
+pass it to every `convertPage` call so the Anthropic SDK connection is shared.
 
 ### ConvertedPage fields set by this stage
 
