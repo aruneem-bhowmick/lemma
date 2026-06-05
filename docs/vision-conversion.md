@@ -22,20 +22,30 @@ VisionClient.convert()          ← calls Claude via Anthropic SDK
   ▼
 parseVisionResponse()           ← extracts structured fields
   │
+  ▼  parsed.markdown (concepts, diagrams, confidence extracted)
+  │
+  ▼
+validateAndRepair()             ← enforces callout convention; auto-repairs case and length
+  │
   ▼
 ConvertedPage                   ← ready for write stage
 ```
 
-Three modules collaborate:
+Four modules collaborate in `convertPage`:
 
 | Module | Role |
 |--------|------|
 | `src/vision/prompt.ts` | Defines `SYSTEM_PROMPT` and `USER_PROMPT_TEMPLATE` |
 | `src/vision/client.ts` | Sends the image to the model, handles retries |
 | `src/vision/parser.ts` | Extracts structured data from the raw response |
+| `src/pipeline/validate.ts` | Validates and repairs the parsed Markdown body |
 
-The stage orchestrator is `src/pipeline/convert.ts`, which wires these three
+The stage orchestrator is `src/pipeline/convert.ts`, which wires these four
 together and populates the `ConvertedPage` returned to the orchestrator.
+
+The `ConvertedPage.markdown` field contains the **validated** Markdown string
+(after any auto-repairs).  Downstream stages do not need to validate again.
+See [Callout Validation](callout-validation.md) for the full rule specification.
 
 ---
 
@@ -284,7 +294,7 @@ pass it to every `convertPage` call so the Anthropic SDK connection is shared.
 | `title`, `section` | `page.title`, `page.section` |
 | `lastModified` | `page.lastModifiedDateTime` |
 | `contentHash` | `renderResult.contentHash` |
-| `markdown` | `parsed.markdown` |
+| `markdown` | `validated.markdown` (after `validateAndRepair`) |
 | `frontmatter` | Object with `page_id`, `title`, `section`, `last_modified`, `source_hash`, `concepts`, `has_diagrams`, `confidence` |
 | `diagrams` | `parsed.diagrams` |
 | `assetPaths` | `[]` (populated by the asset extraction stage) |
@@ -325,6 +335,8 @@ verify that realistic model output parses correctly end-to-end.
 
 ## Related Documents
 
+- [Callout Validation](callout-validation.md) — the validation and auto-repair rules applied to the parsed Markdown.
+- [Frontmatter Generation](frontmatter.md) — how the `frontmatter` object is serialised to YAML for the corpus file.
 - [Project Structure](project-structure.md) — full source layout and module roles.
 - [Development Setup](development.md) — environment variables and running tests locally.
 - [Rendering Strategy](rendering-strategy.md) — how the JPEG buffer fed into this stage is produced.

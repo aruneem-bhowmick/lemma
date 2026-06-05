@@ -138,6 +138,18 @@ npx vitest run tests/unit/convert.test.ts
 
 The parser test suite loads `tests/fixtures/sample-response.md` — a realistic model output for an Eulerian-graphs page — to verify end-to-end fixture parsing. The VisionClient tests mock `@anthropic-ai/sdk` via `vi.mock` so no credentials are needed. See [docs/vision-conversion.md](vision-conversion.md) for the full prompt design and parser specification.
 
+**Callout validation and frontmatter unit tests** run entirely in memory — no external dependencies or environment variables required:
+
+```bash
+# Callout validation: 35 tests — all six rules, repaired flag, issues array
+npx vitest run tests/unit/validate.test.ts
+
+# Frontmatter generation: 29 tests — YAML structure, field values, concept sorting
+npx vitest run tests/unit/frontmatter.test.ts
+```
+
+The validation tests exercise every rule branch including auto-repair (type normalization, line truncation) and detect-only checks (unknown types, unmatched `$$`, missing image tags, unparseable JSON). The frontmatter tests parse the YAML output with `js-yaml` to verify round-trip correctness of all fields. See [docs/callout-validation.md](callout-validation.md) and [docs/frontmatter.md](frontmatter.md) for the full rule and field specifications.
+
 ## Building and Linting
 
 ```bash
