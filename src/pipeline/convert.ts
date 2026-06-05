@@ -40,16 +40,20 @@ import { parseVisionResponse } from '../vision/parser.js';
  *
  * @param renderResult - Output of the render stage (image buffer + hash).
  * @param page         - Page metadata for prompt context and field population.
+ * @param client       - Shared VisionClient instance; defaults to a new instance
+ *                       when not provided. Callers that process multiple pages
+ *                       should create one VisionClient and pass it here so the
+ *                       Anthropic SDK connection is reused across pages.
  * @returns Fully populated ConvertedPage.
  * @throws VisionError when the API call fails after retries.
  */
 export async function convertPage(
   renderResult: RenderResult,
   page: PageMeta,
+  client: VisionClient = new VisionClient(),
 ): Promise<ConvertedPage> {
   const imageBase64 = renderResult.imageBuffer.toString('base64');
 
-  const client = new VisionClient();
   const rawResponse = await client.convert(imageBase64, page.title, page.section);
 
   const parsed = parseVisionResponse(rawResponse);
