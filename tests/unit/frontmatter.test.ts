@@ -193,6 +193,14 @@ describe('generateFrontmatter — concept sorting', () => {
     expect(fm['concepts']).toEqual(['Only One']);
   });
 
+  it('returns an empty concepts list when the concepts key is absent from frontmatter', () => {
+    // Explicitly set concepts to undefined to trigger the ?? [] fallback
+    const page = makePage({}, { concepts: undefined as unknown as string[] });
+    const fm = parseFrontmatterYaml(generateFrontmatter(page));
+    expect(Array.isArray(fm['concepts'])).toBe(true);
+    expect((fm['concepts'] as string[]).length).toBe(0);
+  });
+
   it('does not mutate the concepts array on page.frontmatter', () => {
     const original = ['Z', 'A', 'M'];
     const page = makePage({}, { concepts: original });

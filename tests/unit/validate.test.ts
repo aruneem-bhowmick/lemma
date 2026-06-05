@@ -248,6 +248,37 @@ describe('validateAndRepair — diagram JSON parseability', () => {
     );
     expect(jsonIssues.length).toBe(2);
   });
+
+  it('adds an issue when the JSON fence is unclosed (no closing ```) and JSON is invalid', () => {
+    // The JSON fence is never closed — endDiagram is called at end-of-input with inJson=true
+    const input =
+      '> [!diagram] Unclosed Invalid\n' +
+      '> ![fig](./assets/placeholder.png)\n' +
+      '> ```json\n' +
+      '> { "type": "undirected", "vertices": [INVALID ';
+    // No closing > ``` line
+    const result = validateAndRepair(input, PAGE_ID);
+    const jsonIssues = result.issues.filter(
+      (s) => s.toLowerCase().includes('json') || s.toLowerCase().includes('parseable'),
+    );
+    expect(jsonIssues.length).toBe(1);
+  });
+
+  it('adds no JSON issue when an unclosed fence contains valid JSON', () => {
+    // The JSON fence is never closed — endDiagram is called at end-of-input with inJson=true
+    // but the accumulated JSON is valid, so no issue is added
+    const input =
+      '> [!diagram] Unclosed Valid\n' +
+      '> ![fig](./assets/placeholder.png)\n' +
+      '> ```json\n' +
+      '> { "type": "undirected", "vertices": ["A"], "edges": [], "caption": "Test" }';
+    // No closing > ``` line
+    const result = validateAndRepair(input, PAGE_ID);
+    const jsonIssues = result.issues.filter(
+      (s) => s.toLowerCase().includes('json') || s.toLowerCase().includes('parseable'),
+    );
+    expect(jsonIssues.length).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
