@@ -44,7 +44,6 @@ class FakeApiStatusError extends Error {
 vi.mock('@anthropic-ai/sdk', () => ({
   default: class MockAnthropic {
     messages = { create: mockCreate };
-    constructor(_options?: unknown) {}
   },
 }));
 
