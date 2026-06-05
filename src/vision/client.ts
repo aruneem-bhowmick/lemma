@@ -42,6 +42,12 @@ const MAX_TOKENS = 4096;
 /** Maximum number of retry attempts after the initial call (total = MAX_RETRIES + 1). */
 const MAX_RETRIES = 3;
 
+/** Base delay in ms for the first retry backoff interval. */
+const BACKOFF_BASE_MS = 500;
+
+/** Maximum delay cap in ms regardless of attempt count. */
+const BACKOFF_MAX_MS = 10_000;
+
 /**
  * Approximate model pricing in USD per million tokens (input / output).
  * Hardcoded as a coarse operational guide — not for billing.
@@ -85,6 +91,16 @@ export class VisionError extends Error {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Computes a bounded exponential backoff delay with ±50 % random jitter.
+ * `attempt` is zero-indexed (0 = first retry).
+ */
+function backoffDelay(attempt: number): number {
+  const base = Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * Math.pow(2, attempt));
+  const jitter = base * 0.5 * (Math.random() * 2 - 1);
+  return Math.max(0, base + jitter);
+}
 
 /**
  * Returns true when the thrown value has a numeric `status` property.
@@ -195,8 +211,10 @@ export class VisionClient {
             `(est. $${costUsd.toFixed(4)})`,
         );
 
-        const firstBlock = response.content[0];
-        if (!firstBlock || firstBlock.type !== 'text') {
+        const textBlock = response.content.find(
+          (b): b is { type: 'text'; text: string } => b.type === 'text',
+        );
+        if (!textBlock) {
           throw new VisionError(
             'Unexpected non-text response block from vision model',
             this.model,
@@ -204,7 +222,7 @@ export class VisionClient {
           );
         }
 
-        return firstBlock.text;
+        return textBlock.text;
       } catch (err) {
         if (err instanceof VisionError) {
           throw err;
@@ -229,6 +247,9 @@ export class VisionClient {
           );
 
           if (attempt < MAX_RETRIES) {
+            await new Promise<void>((resolve) =>
+              setTimeout(resolve, backoffDelay(attempt)),
+            );
             continue;
           }
         } else {
