@@ -203,7 +203,7 @@ raw model response string into all structured fields the pipeline needs.
 Concept titles are extracted from the first line of `[!definition]` and
 `[!theorem]` callout blocks using a case-insensitive regex:
 
-```
+```text
 > [!definition] Eulerian Circuit     ← concept title: "Eulerian Circuit"
 > [!theorem] Euler's Theorem         ← concept title: "Euler's Theorem"
 ```
@@ -214,7 +214,7 @@ Concept titles are extracted from the first line of `[!definition]` and
 
 The parser walks line-by-line through the response looking for `[!diagram]`
 callout blocks. Within each such block, it collects lines between
-` ```json ` and ` ``` `, strips the leading `> ` prefix from each line,
+`` ```json `` and `` ``` ``, strips the leading `> ` prefix from each line,
 and attempts `JSON.parse`.
 
 A valid diagram JSON block must contain `type`, `vertices`, and `edges` keys:
