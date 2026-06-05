@@ -1,0 +1,331 @@
+# Vision Conversion — OneNote Image → Structured Markdown
+
+This document describes how the Lemma pipeline converts a rendered OneNote page
+image into structured, validated Markdown. It covers the system prompt design,
+the vision LLM client, the response parser, and the `convertPage` pipeline stage.
+
+---
+
+## Overview
+
+Stage 4 of the Lemma pipeline receives a JPEG buffer from the render stage
+and returns a fully populated `ConvertedPage`. The conversion path is:
+
+```text
+renderResult.imageBuffer (JPEG)
+  │
+  ▼
+VisionClient.convert()          ← calls Claude via Anthropic SDK
+  │
+  ▼  raw Markdown string
+  │
+  ▼
+parseVisionResponse()           ← extracts structured fields
+  │
+  ▼
+ConvertedPage                   ← ready for write stage
+```
+
+Three modules collaborate:
+
+| Module | Role |
+|--------|------|
+| `src/vision/prompt.ts` | Defines `SYSTEM_PROMPT` and `USER_PROMPT_TEMPLATE` |
+| `src/vision/client.ts` | Sends the image to the model, handles retries |
+| `src/vision/parser.ts` | Extracts structured data from the raw response |
+
+The stage orchestrator is `src/pipeline/convert.ts`, which wires these three
+together and populates the `ConvertedPage` returned to the orchestrator.
+
+---
+
+## System Prompt Design
+
+### Callout Convention
+
+The vision model is instructed to use five callout types with exact syntax:
+
+```markdown
+> [!definition] <Title>
+> <body>
+
+> [!theorem] <Title>
+> <body>
+
+> [!proof]
+> <body>
+
+> [!example] <Title>
+> <body>
+
+> [!diagram] <Caption>
+> ![fig](./assets/<asset-placeholder>.png)
+> ```json
+> { "type": "undirected"|"directed"|"weighted",
+>   "vertices": [...],
+>   "edges": [...],
+>   "caption": "<same as callout title>" }
+> ```
+```
+
+Only these five types are valid. The callout parser normalises case
+(so `[!Definition]` becomes `[!definition]`) during the validation stage
+downstream.
+
+### Math Formatting
+
+- Inline math: `$...$`
+- Display math: `$$...$$`
+- Uncertain symbols: `[UNCERTAIN: <description>]`
+
+### Diagrams
+
+For every hand-drawn graph, the model embeds the `[!diagram]` callout with
+the full-page image reference and a JSON adjacency block. The adjacency
+block uses the `<asset-placeholder>` string in the image path, which the
+asset extraction stage replaces with the actual file path.
+
+Non-graph diagrams (Venn diagrams, flowcharts) use the `[!diagram]` callout
+without a JSON block and append `[NON-GRAPH-DIAGRAM]` after the image tag.
+
+### Confidence Annotation
+
+The model appends a confidence comment at the very end of every response:
+
+```text
+<!-- confidence: high|medium|low -->
+```
+
+| Level | Meaning |
+|-------|---------|
+| `high` | All content legible and unambiguous |
+| `medium` | Some regions or symbols are ambiguous |
+| `low` | Significant sections are unclear |
+
+The parser strips this comment from the `markdown` field and stores the
+level in `ParsedVisionResponse.confidence`.
+
+### Honesty Constraints
+
+The prompt instructs the model to:
+- Never invent content not visible in the image.
+- Never hallucinate proof steps.
+- Write `[ILLEGIBLE]` for sections it cannot read.
+- Write `[UNCERTAIN: <description>]` for individual uncertain symbols.
+
+---
+
+## VisionClient
+
+**File:** `src/vision/client.ts`
+
+`VisionClient` wraps the Anthropic SDK. A single instance should be created per
+pipeline run and passed to each `convertPage` call so the Anthropic SDK connection
+is reused across pages (see [convertPage Pipeline Stage](#convertpage-pipeline-stage)).
+
+### Configuration
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `VISION_MODEL` | `claude-sonnet-4-6` | Model identifier passed to the SDK |
+| `ANTHROPIC_API_KEY` | — | Anthropic API key |
+
+### API call structure
+
+Each call to `VisionClient.convert()` sends:
+- `system`: the full `SYSTEM_PROMPT` constant
+- `messages[0].content`: two blocks — an image block (base64 JPEG) and a
+  text block (the interpolated `USER_PROMPT_TEMPLATE`)
+- `max_tokens`: 4096
+
+### Retry behaviour
+
+The client retries on **HTTP 429** (rate-limited) and **HTTP 5xx**
+(server-side) errors. Non-retryable errors (HTTP 4xx other than 429) are
+thrown immediately.
+
+| Attempt | Trigger |
+|---------|---------|
+| 1 (initial) | Always |
+| 2 (retry 1) | If attempt 1 returned a retryable error |
+| 3 (retry 2) | If attempt 2 returned a retryable error |
+| 4 (retry 3) | If attempt 3 returned a retryable error |
+
+After the fourth failed attempt, a `VisionError` is thrown.
+
+Before each retry the client waits for a bounded exponential backoff with
+±50 % random jitter: `delay = min(10 000 ms, 500 ms × 2^attempt)`. This
+prevents hot-loop retries under sustained rate-limiting while keeping the
+first retry fast.
+
+### Response parsing
+
+`VisionClient.convert()` scans `response.content` for the first block with
+`type === 'text'` rather than assuming position 0 is always a text block.
+If no text block is found a `VisionError` is thrown immediately.
+
+### VisionError
+
+```typescript
+class VisionError extends Error {
+  readonly model: string;      // model identifier
+  readonly httpStatus: number; // HTTP status (0 if no HTTP response)
+  readonly retryable: boolean; // true for 429 and 5xx
+}
+```
+
+`VisionError` is exported from `src/vision/client.ts`. The pipeline
+orchestrator catches it and records a per-page failure in the manifest
+without aborting the run.
+
+### Logging
+
+On every call:
+```text
+[vision] sending page to claude-sonnet-4-6
+[vision] received 1247 tokens in 3402ms (est. $0.0023)
+```
+
+Both lines go to `process.stdout`. Token counts are drawn from
+`response.usage`. The cost estimate uses hardcoded price constants and
+is a rough guide only — it does not account for pricing changes.
+
+---
+
+## Response Parser
+
+**File:** `src/vision/parser.ts`
+
+`parseVisionResponse(raw: string): ParsedVisionResponse` converts the
+raw model response string into all structured fields the pipeline needs.
+
+### ParsedVisionResponse
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `markdown` | `string` | Full body with confidence comment removed |
+| `concepts` | `string[]` | Titles from `[!definition]` and `[!theorem]` headers |
+| `diagrams` | `DiagramData[]` | Adjacency data from valid JSON blocks |
+| `hasUncertain` | `boolean` | True if any `[UNCERTAIN:` markers present |
+| `hasIllegible` | `boolean` | True if any `[ILLEGIBLE]` markers present |
+| `confidence` | `'high' \| 'medium' \| 'low'` | From confidence comment |
+
+### Concept extraction
+
+Concept titles are extracted from the first line of `[!definition]` and
+`[!theorem]` callout blocks using a case-insensitive regex:
+
+```text
+> [!definition] Eulerian Circuit     ← concept title: "Eulerian Circuit"
+> [!theorem] Euler's Theorem         ← concept title: "Euler's Theorem"
+```
+
+`[!proof]`, `[!example]`, and `[!diagram]` callouts do not produce concepts.
+
+### Diagram JSON extraction
+
+The parser walks line-by-line through the response looking for `[!diagram]`
+callout blocks. Within each such block, it collects lines between
+`` ```json `` and `` ``` ``, strips the leading `> ` prefix from each line,
+and attempts `JSON.parse`.
+
+A valid diagram JSON block must pass full schema validation:
+
+| Field | Required type |
+|-------|--------------|
+| `type` | `"undirected"` \| `"directed"` \| `"weighted"` |
+| `vertices` | `string[]` |
+| `edges` | `Array<[string, string] \| [string, string, number]>` |
+| `caption` | `string` |
+
+```json
+{
+  "type": "undirected",
+  "vertices": ["A", "B", "C"],
+  "edges": [["A", "B"], ["B", "C"], ["A", "C"]],
+  "caption": "Example: K₃"
+}
+```
+
+Malformed JSON, blocks missing required fields, invalid `type` values,
+malformed `vertices`, or malformed `edges` each log a descriptive warning to
+`console.warn` and are skipped without throwing. An unterminated JSON fence
+(no closing `` ``` `` before end of input) is also warned and discarded — the
+partial buffer is never parsed. A single broken diagram block does not abort
+processing of the entire page.
+
+### Confidence default
+
+When the confidence comment is absent or its level is not one of
+`high`, `medium`, or `low`, the parser defaults to `'medium'`.
+
+---
+
+## convertPage Pipeline Stage
+
+**File:** `src/pipeline/convert.ts`
+
+`convertPage(renderResult, page, client?)` orchestrates the three modules above:
+
+1. Base64-encodes `renderResult.imageBuffer`.
+2. Calls `client.convert(base64, page.title, page.section)` using the provided
+   `VisionClient` (or a newly constructed one if omitted).
+3. Calls `parseVisionResponse(rawResponse)`.
+4. Constructs and returns a `ConvertedPage`.
+
+Callers that process multiple pages should create a single `VisionClient` and
+pass it to every `convertPage` call so the Anthropic SDK connection is shared.
+
+### ConvertedPage fields set by this stage
+
+| Field | Source |
+|-------|--------|
+| `pageId` | `page.id` |
+| `title`, `section` | `page.title`, `page.section` |
+| `lastModified` | `page.lastModifiedDateTime` |
+| `contentHash` | `renderResult.contentHash` |
+| `markdown` | `parsed.markdown` |
+| `frontmatter` | Object with `page_id`, `title`, `section`, `last_modified`, `source_hash`, `concepts`, `has_diagrams`, `confidence` |
+| `diagrams` | `parsed.diagrams` |
+| `assetPaths` | `[]` (populated by the asset extraction stage) |
+| `confidence` | `parsed.confidence` |
+
+### Log output
+
+```text
+[convert] page <id> — confidence: high, 3 concepts, 1 diagrams
+[convert] WARNING: page <id> contains illegible regions    ← only when hasIllegible
+```
+
+### Error handling
+
+`VisionError` thrown by `VisionClient` propagates upward to the orchestrator
+without wrapping. The orchestrator records a per-page failure in the manifest
+and continues to the next page.
+
+---
+
+## Test Fixture
+
+**File:** `tests/fixtures/sample-response.md`
+
+A realistic model output for a graph-theory page covering Eulerian circuits.
+It contains:
+- `[!definition] Eulerian Circuit` and `[!theorem] Euler's Theorem` callouts
+- A `[!proof]` and an `[!example]` callout
+- A `[!diagram]` callout with a valid three-vertex JSON adjacency block
+- Display math (`$$\sum_{v \in V} \deg(v) = 2|E|$$`)
+- An `[UNCERTAIN: ...]` marker
+- `<!-- confidence: high -->`
+
+The fixture is loaded directly by `tests/unit/vision-parser.test.ts` to
+verify that realistic model output parses correctly end-to-end.
+
+---
+
+## Related Documents
+
+- [Project Structure](project-structure.md) — full source layout and module roles.
+- [Development Setup](development.md) — environment variables and running tests locally.
+- [Rendering Strategy](rendering-strategy.md) — how the JPEG buffer fed into this stage is produced.
+- [Pipeline Change Detection](pipeline-change-detection.md) — how `contentHash` is used in subsequent runs.

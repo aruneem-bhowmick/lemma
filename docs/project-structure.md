@@ -30,11 +30,16 @@ lemma/
 │   │   └── migrations/
 │   │       └── 001_pages.sql  ← pages table schema
 │   └── vision/             ← Vision LLM wrapper
-│       └── client.ts       ← VisionClient (Anthropic SDK, retry, cost logging)
+│       ├── prompt.ts       ← SYSTEM_PROMPT constant and USER_PROMPT_TEMPLATE
+│       ├── client.ts       ← VisionClient (Anthropic SDK, retry, cost logging) + VisionError
+│       └── parser.ts       ← parseVisionResponse: concepts, diagrams, confidence, flags
 │
 ├── tests/                  ← All test files (mirrors src/ layout)
 │   ├── unit/               ← Vitest unit tests with vi.mock (no network/DB)
-│   └── integration/        ← Integration tests (require TEST_DATABASE_URL or GRAPH_LIVE)
+│   ├── integration/        ← Integration tests (require TEST_DATABASE_URL or GRAPH_LIVE)
+│   └── fixtures/           ← Static test data files
+│       ├── sample.pdf      ← Minimal PDF for render/rasterisation tests
+│       └── sample-response.md ← Realistic vision model output for parser tests
 │
 ├── scripts/                ← Runnable CLI scripts
 │   ├── run-pipeline.ts     ← Entry point: loads .env, calls runPipeline()
@@ -97,6 +102,8 @@ Each file corresponds to exactly one pipeline stage. Stages receive typed inputs
 - `semi-auto.ts` — reads a manually placed `<pageId>.pdf` from `SEMI_AUTO_DROP_DIR`, optionally polling up to `SEMI_AUTO_TIMEOUT_MS` milliseconds, then rasterises via `rasterizePdfBuffer`. This is the primary strategy for personal Microsoft accounts where the Graph ink-export endpoint returns 415.
 - `inkml-raster.ts` — stub that always throws, reserving the strategy slot in the fallback chain for future InkML → SVG → PNG rendering work.
 
+**`convert.ts`** implements `convertPage(renderResult, page)`, the fourth pipeline stage. It base64-encodes the JPEG buffer from the render stage, sends it to `VisionClient.convert()` with the page title and section for prompt interpolation, and passes the raw response string to `parseVisionResponse()`. The returned `ConvertedPage` includes the full Markdown body, all extracted `DiagramData` objects, a pre-populated `frontmatter` object, and the `contentHash` propagated unchanged from the render result. The `assetPaths` field is initialised as an empty array and populated by the asset extraction stage. See [docs/vision-conversion.md](vision-conversion.md) for the full prompt design, parser specification, and API reference.
+
 ### `src/graph/`
 
 The Graph module is a thin HTTP wrapper around the Microsoft OneNote Graph API.  It contains three files:
@@ -119,9 +126,17 @@ The Graph module is a thin HTTP wrapper around the Microsoft OneNote Graph API. 
 
 See [docs/database.md](database.md) for the full schema reference, column descriptions, and query function documentation.
 
-### `src/vision/client.ts`
+### `src/vision/`
 
-`VisionClient` wraps the Anthropic SDK. It is model-agnostic: the active model is read from the `VISION_MODEL` environment variable (defaulting to `claude-sonnet-4-6`). Prompt content lives in `src/vision/prompt.ts`.
+The vision module is the intelligence core of the pipeline. It contains three files:
+
+**`prompt.ts`** exports two string constants. `SYSTEM_PROMPT` is the complete vision transcription prompt that instructs the model on callout syntax, LaTeX conventions, diagram JSON schema, confidence annotation, and honesty constraints. `USER_PROMPT_TEMPLATE` is the per-page user turn with `{{pageTitle}}` and `{{sectionName}}` placeholders.
+
+**`client.ts`** implements `VisionClient`. The active model is read from `VISION_MODEL` (defaulting to `claude-sonnet-4-6`). Each call to `convert(imageBase64, pageTitle, sectionName)` sends the base64 JPEG together with the system prompt and interpolated user template. The client retries up to three times on HTTP 429 and 5xx errors; non-retryable 4xx errors throw `VisionError` immediately. `VisionError` (exported from this file) carries `model`, `httpStatus`, and `retryable` fields.
+
+**`parser.ts`** exports `parseVisionResponse(raw)` which converts the raw model response string into a `ParsedVisionResponse`: the `markdown` field with the confidence comment stripped, concept titles from `[!definition]` and `[!theorem]` callout headers, structured `DiagramData` objects parsed from JSON blocks inside `[!diagram]` callouts, and `hasUncertain`/`hasIllegible` flags. Malformed diagram JSON is skipped with a warning rather than throwing.
+
+See [docs/vision-conversion.md](vision-conversion.md) for the full design, prompt specification, and API reference.
 
 ## TypeScript Configuration
 
