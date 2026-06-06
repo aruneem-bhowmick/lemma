@@ -184,7 +184,7 @@ Log output on a page with a capitalized callout type:
 
 ## Test Coverage
 
-**File:** `tests/unit/validate.test.ts` — 35 tests
+**File:** `tests/unit/validate.test.ts` — 37 tests
 
 | Group | Tests |
 |-------|-------|
@@ -192,7 +192,7 @@ Log output on a page with a capitalized callout type:
 | Unknown callout detection | 4 — issue content, no repair, repaired=false, multiple types |
 | Display-math pairing | 5 — odd/even counts, zero, one, four |
 | Diagram image tag | 3 — missing, present, multiple diagrams |
-| Diagram JSON parseability | 3 — invalid, valid, multiple invalid blocks |
+| Diagram JSON parseability | 5 — invalid, valid, multiple invalid blocks, unclosed fence invalid, unclosed fence valid |
 | Overlong line truncation | 4 — truncation length, at-limit, single, multiple lines |
 | repaired flag accuracy | 4 — repair cases, detect-only cases |
 | Issues array | 3 — empty for valid input, pageId in every message, accumulation |

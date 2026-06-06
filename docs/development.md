@@ -141,10 +141,10 @@ The parser test suite loads `tests/fixtures/sample-response.md` — a realistic 
 **Callout validation and frontmatter unit tests** run entirely in memory — no external dependencies or environment variables required:
 
 ```bash
-# Callout validation: 35 tests — all six rules, repaired flag, issues array
+# Callout validation: 37 tests — all six rules, repaired flag, issues array
 npx vitest run tests/unit/validate.test.ts
 
-# Frontmatter generation: 29 tests — YAML structure, field values, concept sorting
+# Frontmatter generation: 30 tests — YAML structure, field values, concept sorting
 npx vitest run tests/unit/frontmatter.test.ts
 ```
 

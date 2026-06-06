@@ -127,13 +127,13 @@ or extraction, as the Markdown body may contain gaps.
 
 ## Test Coverage
 
-**File:** `tests/unit/frontmatter.test.ts` — 29 tests
+**File:** `tests/unit/frontmatter.test.ts` — 30 tests
 
 | Group | Tests |
 |-------|-------|
 | Output structure | 4 — delimiters, parseability, determinism |
 | Required fields | 9 — all eight fields verified via yaml.load |
-| Concept sorting | 5 — alphabetical order, empty array, no mutation |
+| Concept sorting | 6 — alphabetical order, empty array, absent key fallback, single concept, no mutation |
 | has_diagrams | 3 — true for 1 diagram, true for 2, false for empty |
 | String escaping | 4 — quotes, colons, hashes, round-trip |
 | Field ordering | 4 — spot-checks for documented key sequence |
