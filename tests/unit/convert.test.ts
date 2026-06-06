@@ -23,6 +23,7 @@ import type { RenderResult } from '../../src/pipeline/render.js';
 
 const mockConvert = vi.hoisted(() => vi.fn());
 const mockParseVisionResponse = vi.hoisted(() => vi.fn());
+const mockExtractAndWriteAssets = vi.hoisted(() => vi.fn());
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -48,6 +49,10 @@ vi.mock('../../src/vision/client.js', () => ({
 
 vi.mock('../../src/vision/parser.js', () => ({
   parseVisionResponse: mockParseVisionResponse,
+}));
+
+vi.mock('../../src/pipeline/assets.js', () => ({
+  extractAndWriteAssets: mockExtractAndWriteAssets,
 }));
 
 // ---------------------------------------------------------------------------
@@ -127,11 +132,17 @@ let warnSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   mockConvert.mockReset();
   mockParseVisionResponse.mockReset();
+  mockExtractAndWriteAssets.mockReset();
 
   // Default: VisionClient.convert returns a raw response string.
   mockConvert.mockResolvedValue('> [!definition] Test\n<!-- confidence: high -->');
   // Default: parseVisionResponse returns a clean parsed result.
   mockParseVisionResponse.mockReturnValue(makeParsedResponse());
+  // Default: extractAndWriteAssets returns empty assets with the same markdown.
+  mockExtractAndWriteAssets.mockResolvedValue({
+    assets: [],
+    markdown: '> [!definition] Eulerian Circuit\n> Body text.',
+  });
 
   logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -205,9 +216,36 @@ describe('convertPage — returned ConvertedPage', () => {
     expect(result.diagrams[0].vertices).toEqual(['A', 'B']);
   });
 
-  it('initialises assetPaths as an empty array', async () => {
+  it('returns empty assetPaths when no diagrams are present', async () => {
+    // Default mock: no diagrams → extractAndWriteAssets returns empty assets.
+    mockExtractAndWriteAssets.mockResolvedValue({ assets: [], markdown: '> [!definition] Test' });
     const result = await convertPage(makeRenderResult(), makePageMeta());
     expect(result.assetPaths).toEqual([]);
+  });
+
+  it('populates assetPaths from assets returned by extractAndWriteAssets', async () => {
+    const diagram = { type: 'undirected' as const, vertices: ['A'], edges: [] as Array<[string,string]>, caption: 'C' };
+    mockParseVisionResponse.mockReturnValue(makeParsedResponse({ diagrams: [diagram] }));
+    mockExtractAndWriteAssets.mockResolvedValue({
+      assets: [
+        {
+          filename: 'page-test-convert-01-fig0.png',
+          relativePath: './assets/page-test-convert-01-fig0.png',
+          absolutePath: '/tmp/assets/page-test-convert-01-fig0.png',
+          diagramIndex: 0,
+        },
+      ],
+      markdown: '> [!diagram] resolved',
+    });
+    const result = await convertPage(makeRenderResult(), makePageMeta());
+    expect(result.assetPaths).toEqual(['/tmp/assets/page-test-convert-01-fig0.png']);
+  });
+
+  it('uses resolved markdown from extractAndWriteAssets in the returned page', async () => {
+    const resolvedMarkdown = '> [!diagram] With ./assets/page-test-convert-01-fig0.png resolved';
+    mockExtractAndWriteAssets.mockResolvedValue({ assets: [], markdown: resolvedMarkdown });
+    const result = await convertPage(makeRenderResult(), makePageMeta());
+    expect(result.markdown).toBe(resolvedMarkdown);
   });
 
   it('populates frontmatter with page_id matching pageId', async () => {
