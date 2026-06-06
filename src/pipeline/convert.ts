@@ -2,16 +2,17 @@
  * Stage 4 of the Lemma pipeline: vision conversion.
  *
  * Accepts the rendered page image from the render stage, sends it to the
- * vision LLM via VisionClient, parses the structured Markdown response, and
- * returns a fully populated ConvertedPage ready for the write stage.
+ * vision LLM via VisionClient, parses the structured Markdown response,
+ * validates and repairs the callout structure, and returns a fully populated
+ * ConvertedPage ready for the write stage.
  *
  * Responsibility boundaries
  * ─────────────────────────
- * This stage is deliberately narrow: it encodes the buffer, calls the model,
- * and parses the output. Frontmatter serialisation (Prompt 8) and asset file
- * writing (Prompt 9) are downstream concerns handled by their own modules.
- * The `frontmatter` field is pre-populated here with all known values; the
- * serialisation layer in Prompt 8 will convert this object to a YAML string.
+ * This stage encodes the buffer, calls the model, parses the output, and
+ * validates the Markdown convention.  Asset file writing is a downstream
+ * concern handled by the asset extraction stage.  The `frontmatter` field
+ * is pre-populated here as a plain object; generateFrontmatter (from
+ * frontmatter.ts) serialises it to a YAML string when the file is written.
  *
  * Error handling
  * ──────────────
@@ -24,6 +25,7 @@ import type { PageMeta, ConvertedPage } from '../types.js';
 import type { RenderResult } from './render.js';
 import { VisionClient } from '../vision/client.js';
 import { parseVisionResponse } from '../vision/parser.js';
+import { validateAndRepair } from './validate.js';
 
 /**
  * Converts a rendered page image to a structured ConvertedPage via the
@@ -58,6 +60,15 @@ export async function convertPage(
 
   const parsed = parseVisionResponse(rawResponse);
 
+  // Validate and auto-repair the Markdown body before storing it.
+  const validated = validateAndRepair(parsed.markdown, page.id);
+  if (validated.repaired) {
+    console.log(`[convert] page ${page.id}: markdown auto-repaired`);
+  }
+  for (const issue of validated.issues) {
+    console.warn(issue);
+  }
+
   console.log(
     `[convert] page ${page.id} — confidence: ${parsed.confidence}, ` +
       `${parsed.concepts.length} concepts, ${parsed.diagrams.length} diagrams`,
@@ -73,7 +84,7 @@ export async function convertPage(
     section: page.section,
     lastModified: page.lastModifiedDateTime,
     contentHash: renderResult.contentHash,
-    markdown: parsed.markdown,
+    markdown: validated.markdown,
     frontmatter: {
       page_id: page.id,
       title: page.title,

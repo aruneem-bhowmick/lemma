@@ -18,6 +18,8 @@ lemma/
 │   │   │   ├── semi-auto.ts    ← Strategy B: local drop-folder PDF (personal accounts)
 │   │   │   └── inkml-raster.ts ← Strategy C: stub (not yet implemented)
 │   │   ├── convert.ts      ← Stage 4: vision LLM → structured Markdown
+│   │   ├── validate.ts     ← Callout convention validation + auto-repair (used in stage 4)
+│   │   ├── frontmatter.ts  ← YAML frontmatter generation (used in stage 5)
 │   │   ├── write.ts        ← Stage 5: compose .md file, update manifest
 │   │   └── index.ts        ← Orchestrator: runs stages 1–5 with concurrency cap
 │   ├── graph/              ← Microsoft Graph API wrapper
@@ -102,7 +104,11 @@ Each file corresponds to exactly one pipeline stage. Stages receive typed inputs
 - `semi-auto.ts` — reads a manually placed `<pageId>.pdf` from `SEMI_AUTO_DROP_DIR`, optionally polling up to `SEMI_AUTO_TIMEOUT_MS` milliseconds, then rasterises via `rasterizePdfBuffer`. This is the primary strategy for personal Microsoft accounts where the Graph ink-export endpoint returns 415.
 - `inkml-raster.ts` — stub that always throws, reserving the strategy slot in the fallback chain for future InkML → SVG → PNG rendering work.
 
-**`convert.ts`** implements `convertPage(renderResult, page)`, the fourth pipeline stage. It base64-encodes the JPEG buffer from the render stage, sends it to `VisionClient.convert()` with the page title and section for prompt interpolation, and passes the raw response string to `parseVisionResponse()`. The returned `ConvertedPage` includes the full Markdown body, all extracted `DiagramData` objects, a pre-populated `frontmatter` object, and the `contentHash` propagated unchanged from the render result. The `assetPaths` field is initialised as an empty array and populated by the asset extraction stage. See [docs/vision-conversion.md](vision-conversion.md) for the full prompt design, parser specification, and API reference.
+**`convert.ts`** implements `convertPage(renderResult, page)`, the fourth pipeline stage. It base64-encodes the JPEG buffer from the render stage, sends it to `VisionClient.convert()` with the page title and section for prompt interpolation, and passes the raw response string to `parseVisionResponse()`. The parsed markdown is then passed through `validateAndRepair()` — so the `ConvertedPage.markdown` field always contains validated, auto-repaired content. The returned `ConvertedPage` also includes all extracted `DiagramData` objects, a pre-populated `frontmatter` object, and the `contentHash` propagated unchanged from the render result. The `assetPaths` field is initialised as an empty array and populated by the asset extraction stage. See [docs/vision-conversion.md](vision-conversion.md) for the full design and [docs/callout-validation.md](callout-validation.md) for the validation rule specification.
+
+**`validate.ts`** exports `validateAndRepair(raw, pageId)`, a pure function that enforces the callout convention on a Markdown string and returns a `ValidationResult`. Two rules auto-repair the markdown (callout type case normalization; overlong line truncation); four rules are detect-only (unknown callout types, unmatched `$$` pairs, missing image tags in `[!diagram]` blocks, and unparseable diagram JSON). All problems are reported in the `issues` string array, keyed by `pageId` for traceability. See [docs/callout-validation.md](callout-validation.md) for the full rule specification.
+
+**`frontmatter.ts`** exports `generateFrontmatter(page)`, which serialises a `ConvertedPage` to a `---…---` YAML block using `js-yaml`. Fields are written in a fixed, documented order; concept titles are sorted alphabetically. The write stage calls this function to compose the header of each corpus file. See [docs/frontmatter.md](frontmatter.md) for the field reference and design rationale.
 
 ### `src/graph/`
 
