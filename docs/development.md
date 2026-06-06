@@ -52,7 +52,7 @@ All variables are documented in `.env.example`. The most important ones for loca
 | `AZURE_CLIENT_ID` | Yes (pipeline) | Graph API auth |
 | `GRAPH_REFRESH_TOKEN` | Yes (pipeline) | Long-lived OAuth token |
 | `ONENOTE_NOTEBOOK_ID` | Yes (pipeline) | Target notebook |
-| `DRY_RUN` | No | Set to `true` to skip writes |
+| `DRY_RUN` | No | Set to `true` to skip file writes and DB updates; computed paths are still logged |
 | `RENDER_STRATEGY` | No | Rendering strategy: `pdf-export` (default), `semi-auto`, or `inkml-raster` |
 | `SEMI_AUTO_DROP_DIR` | Conditional | Drop folder path; required when `RENDER_STRATEGY=semi-auto` |
 | `SEMI_AUTO_TIMEOUT_MS` | No | Max wait for drop-folder file in ms; `0` (default) = check once |
@@ -137,6 +137,14 @@ npx vitest run tests/unit/convert.test.ts
 ```
 
 The parser test suite loads `tests/fixtures/sample-response.md` — a realistic model output for an Eulerian-graphs page — to verify end-to-end fixture parsing. The VisionClient tests mock `@anthropic-ai/sdk` via `vi.mock` so no credentials are needed. See [docs/vision-conversion.md](vision-conversion.md) for the full prompt design and parser specification.
+
+**Write stage unit tests** run entirely in memory — no environment variables, network access, or real PostgreSQL connection required (the database queries module is fully mocked):
+
+```bash
+npx vitest run tests/unit/write.test.ts
+```
+
+The suite covers: file creation at the correct `<corpusDir>/<sectionSlug>/<pageId>.md` path; YAML frontmatter delimiter and field correctness; section subdirectory auto-creation; `markProcessed()` called with the right arguments; `byteSize` matches the actual file on disk; idempotent re-runs; `DRY_RUN=true` skipping I/O and DB updates; `[DRY RUN]` prefix in log output; `WriteError` thrown (with no file written) when frontmatter fields are empty; and `slugifySection` Unicode normalisation and fallback behaviour. See [docs/file-write-corpus.md](file-write-corpus.md) for the full stage design.
 
 **Callout validation and frontmatter unit tests** run entirely in memory — no external dependencies or environment variables required:
 
