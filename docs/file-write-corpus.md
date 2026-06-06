@@ -56,7 +56,7 @@ URL-safe, filesystem-safe directory component.
 Steps applied in order:
 
 1. **NFD normalisation** — decomposes accented characters into base + combining
-   mark (e.g. `é` → `e` + ` ́`).
+   mark (e.g. `é` → `e` + `́`).
 2. **Diacritic strip** — removes combining diacritical marks (U+0300–U+036F),
    so `Théorie` → `Theorie`.
 3. **Lowercase**.
@@ -87,7 +87,7 @@ Examples:
 
 The composed file content is:
 
-```
+```text
 <frontmatter block>
 \n
 <markdown body>
@@ -179,9 +179,7 @@ observable change to the corpus or the manifest.
 
 Setting `DRY_RUN=true` in the environment causes `writePage()` to:
 
-- Skip directory creation.
-- Skip the file write.
-- Skip the `markProcessed()` call.
+- Skip directory creation, the file write, and the `markProcessed()` call.
 - Log `[DRY RUN] [write] page <id> → <path> (<bytes> bytes)` instead.
 - Still return `{ markdownPath, byteSize }` — where `byteSize` is the
   in-memory byte size of the composed content — so callers can display a
