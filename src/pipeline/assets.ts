@@ -104,9 +104,12 @@ export async function extractAndWriteAssets(
 
     await sharpModule.default(imageBuffer).png().toFile(absolutePath);
 
-    // Replace only the first occurrence of the placeholder so that each loop
-    // iteration resolves the diagram that corresponds to index i.
-    markdown = markdown.replace('<asset-placeholder>', `page-${page.pageId}-fig${i}`);
+    // Replace the first occurrence of the full image-path placeholder so that
+    // each loop iteration resolves the diagram that corresponds to index i.
+    // Targeting the complete './assets/<asset-placeholder>.png' pattern (rather
+    // than just the bare token) ensures that non-image mentions of the placeholder
+    // string — e.g. in inline code or explanatory prose — are left untouched.
+    markdown = markdown.replace('./assets/<asset-placeholder>.png', relativePath);
 
     assets.push({ filename, relativePath, absolutePath, diagramIndex: i });
   }
