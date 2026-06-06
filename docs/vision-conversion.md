@@ -275,13 +275,16 @@ When the confidence comment is absent or its level is not one of
 
 **File:** `src/pipeline/convert.ts`
 
-`convertPage(renderResult, page, client?)` orchestrates the three modules above:
+`convertPage(renderResult, page, client?)` orchestrates the four modules above:
 
 1. Base64-encodes `renderResult.imageBuffer`.
-2. Calls `client.convert(base64, page.title, page.section)` using the provided
-   `VisionClient` (or a newly constructed one if omitted).
-3. Calls `parseVisionResponse(rawResponse)`.
-4. Constructs and returns a `ConvertedPage`.
+2. Calls `client.convert(base64, page.title, page.section)` on the `VisionClient`
+   (or a newly constructed instance when `client` is omitted).
+3. Calls `parseVisionResponse(rawResponse)` to extract the structured fields.
+4. Calls `validateAndRepair(parsed.markdown, page.id)` to enforce the callout
+   convention and apply safe auto-repairs.
+5. Constructs and returns a `ConvertedPage` whose `markdown` field contains
+   `validated.markdown` — the post-repair string.
 
 Callers that process multiple pages should create a single `VisionClient` and
 pass it to every `convertPage` call so the Anthropic SDK connection is shared.

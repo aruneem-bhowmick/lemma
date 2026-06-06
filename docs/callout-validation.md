@@ -172,10 +172,10 @@ for (const issue of validated.issues) {
 return { ..., markdown: validated.markdown, ... };
 ```
 
-Log output on a page with a capitalized callout type:
+Log output on a page with a capitalized callout type and an unknown type:
 
 ```text
-[convert] page page-abc: markdown auto-repaired (1 issue)
+[convert] page page-abc: markdown auto-repaired
 [validate] page page-abc: unknown callout type [!lemma] — valid types are: ...
 [convert] page page-abc — confidence: high, 2 concepts, 1 diagrams
 ```
