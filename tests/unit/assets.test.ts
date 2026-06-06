@@ -44,7 +44,7 @@ vi.mock('sharp', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import { extractAndWriteAssets, type ExtractedAsset } from '../../src/pipeline/assets.js';
+import { extractAndWriteAssets } from '../../src/pipeline/assets.js';
 
 // ---------------------------------------------------------------------------
 // Test image buffer
@@ -221,6 +221,24 @@ describe('extractAndWriteAssets — markdown resolution', () => {
     const page = makePage('p-empty', [], originalMarkdown);
     const { markdown } = await extractAndWriteAssets(page, TEST_IMAGE_BUFFER, tmpAssetsDir);
     expect(markdown).toBe(originalMarkdown);
+  });
+
+  it('leaves non-image mentions of <asset-placeholder> untouched', async () => {
+    // The full image path pattern is './assets/<asset-placeholder>.png'.
+    // Any other occurrence of the bare token (inline code, prose, etc.)
+    // must not be mutated — only the image tag should be resolved.
+    const mixedMarkdown =
+      '> [!diagram] K3\n' +
+      '> ![fig](./assets/<asset-placeholder>.png)\n' +
+      '> The model emits `<asset-placeholder>` as a token in image tags.\n';
+    const page = makePage('p-nonimage', [makeDiagram()], mixedMarkdown);
+
+    const { markdown } = await extractAndWriteAssets(page, TEST_IMAGE_BUFFER, tmpAssetsDir);
+
+    // The image tag should now point to the real asset path.
+    expect(markdown).toContain('./assets/page-p-nonimage-fig0.png');
+    // The inline-code mention of the bare token should be preserved verbatim.
+    expect(markdown).toContain('`<asset-placeholder>`');
   });
 });
 
