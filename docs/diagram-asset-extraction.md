@@ -47,7 +47,7 @@ Every asset file follows a deterministic naming scheme:
 
 Examples:
 
-```
+```text
 page-ABC123-fig0.png    ← first diagram on page ABC123
 page-ABC123-fig1.png    ← second diagram on the same page
 page-DEF456-fig0.png    ← first diagram on a different page
@@ -82,10 +82,22 @@ string inside every `[!diagram]` callout's image tag:
 ```
 
 The extraction loop processes diagrams in order (index 0, 1, 2, …). On each
-iteration it performs a single non-global `String.replace('<asset-placeholder>',
-...)` which replaces only the **first** remaining occurrence.  This one-at-a-time
-replacement ensures each diagram index maps correctly to the right placeholder,
-even when multiple diagrams appear on the same page.
+iteration it performs a single non-global replacement targeting the **full
+image-path pattern** `./assets/<asset-placeholder>.png`, substituting it with
+the computed `relativePath` for that diagram:
+
+```text
+'./assets/<asset-placeholder>.png'  →  './assets/page-<pageId>-fig<N>.png'
+```
+
+Matching the complete path rather than the bare token `<asset-placeholder>`
+means that any other occurrence of that string in the Markdown body — for
+example, an inline-code mention like `` `<asset-placeholder>` `` in
+explanatory prose — is left untouched.  Only the image tag itself is mutated.
+
+The one-at-a-time (non-global) replacement also ensures each loop iteration
+resolves exactly the diagram-N image tag, even when multiple diagrams appear
+on the same page.
 
 ---
 
