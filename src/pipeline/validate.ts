@@ -25,12 +25,6 @@ const VALID_CALLOUT_TYPES = new Set(['definition', 'theorem', 'proof', 'example'
 /** Lines longer than this threshold are truncated and flagged. */
 const MAX_LINE_LENGTH = 10_000;
 
-/**
- * Regex that matches any [!TYPE] callout header token in Markdown.
- * Captures the type string (everything between [! and ]).
- */
-const CALLOUT_TOKEN_RE = /\[!([\w-]+)\]/g;
-
 // ---------------------------------------------------------------------------
 // Public interface
 // ---------------------------------------------------------------------------
@@ -86,8 +80,6 @@ export function validateAndRepair(raw: string, pageId: string): ValidationResult
     .join('\n');
 
   // ─── Rules 2 & 3: Normalize callout types ─────────────────────────────────
-  // The regex is re-created on each call because CALLOUT_TOKEN_RE has the 'g'
-  // flag; resetting lastIndex or using a fresh instance is safer in practice.
   markdown = markdown.replace(/\[!([\w-]+)\]/g, (match, type: string) => {
     const lower = type.toLowerCase();
     if (VALID_CALLOUT_TYPES.has(lower)) {

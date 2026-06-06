@@ -63,10 +63,7 @@ export async function convertPage(
   // Validate and auto-repair the Markdown body before storing it.
   const validated = validateAndRepair(parsed.markdown, page.id);
   if (validated.repaired) {
-    console.log(
-      `[convert] page ${page.id}: markdown auto-repaired ` +
-        `(${validated.issues.length} issue${validated.issues.length === 1 ? '' : 's'})`,
-    );
+    console.log(`[convert] page ${page.id}: markdown auto-repaired`);
   }
   for (const issue of validated.issues) {
     console.warn(issue);
